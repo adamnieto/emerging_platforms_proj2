@@ -12,27 +12,27 @@ int interpret(formula* f, assignment* a){
   switch(f->conn){
     case AND:{
      /*printf("AND\n");*/
-     int answer1 = interpret(f->land.f,a);
+     int arg1 = interpret(f->land.f,a);
      if(f->land.next != NULL){
-      int answer2 = interpret(f->land.next,a);
-      return answer1 && answer2;
+      int arg2 = interpret(f->land.next,a);
+      return arg1 && arg2;
      }else{
-      return answer1;
+      return arg1;
      }
     }
     case OR: {
      /*printf("OR1\n");*/
-     int answer1 = interpret(f->lor.f1,a);
+     int arg1 = interpret(f->lor.f1,a);
      /*printf("OR2\n");*/
-     int answer2 = interpret(f->lor.f2,a);
+     int arg2 = interpret(f->lor.f2,a);
      /*printf("OR3\n");*/
-     int answer3 = interpret(f->lor.f3,a);
-     return answer1 || answer2 || answer3;
+     int arg3 = interpret(f->lor.f3,a);
+     return arg1 || arg2 || arg3;
     }
     case NEG:{
      /*printf("NEG\n");*/
-     int answer = interpret(f->lneg.f,a);
-     return !answer;
+     int arg = interpret(f->lneg.f,a);
+     return !arg;
     }
     case VAR:{
       /*printf("VAR\n");*/
@@ -43,6 +43,7 @@ int interpret(formula* f, assignment* a){
       return -1;
   }
 }
+
 void print_assignment_map(assignment* a){
   printf("Assignment Map: ");
   for(size_t i = 0; i < a->size; ++i){
@@ -53,6 +54,13 @@ void print_assignment_map(assignment* a){
     }
   }
   return;
+}
+
+void assign_values(assignment* a){
+  size_t num_pos_solns = 1;
+  num_pos_solns << a->size;
+  printf("Num Pos Solutions: %d\n",num_pos_solns);
+  
 }
 
 int main(int argc, char **argv) {
@@ -69,6 +77,7 @@ int main(int argc, char **argv) {
 			break;
 		}
     assignment *a = make_assignment(f);
+    assign_values(a);
     print_assignment_map(a);
     printf("Answer:%s\n",interpret(f,a) ? "True":"False");
     free_assignment(a);
