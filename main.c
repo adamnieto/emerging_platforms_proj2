@@ -5,6 +5,7 @@
 
 #include "sat.h"
 #include "util.h"
+#include<math.h>
 
 
 // Checks if a satisfies f. 
@@ -56,12 +57,50 @@ void print_assignment_map(assignment* a){
   return;
 }
 
-void assign_values(assignment* a){
-  size_t num_pos_solns = 1;
-  num_pos_solns << a->size;
-  printf("Num Pos Solutions: %d\n",num_pos_solns);
+/*void assign_values(assignment* a){*/
+  /*size_t num_pos_solns = 1;*/
+  /*num_pos_solns << a->size;*/
+  /*printf("Num Pos Solutions: %d\n",num_pos_solns);*/
   
+/*}*/
+
+void print_binary(size_t num, size_t num_bits){
+  long current;
+  for(long i = num_bits; i >= 0; i--){
+    current = num >> i;
+    if (current & 1) printf("1");
+    else printf("0");
+  }
+  printf("\n");
 }
+
+assignment* get_case(assignment* a, size_t num, size_t len){
+  size_t current;
+  for(size_t ind = len; ind >= 0; ind--){
+    current = num >> ind;
+    size_t bool_val = (current & 1);
+    if(a->map[ind] == bool_val) continue;
+    else{ 
+      if(bool_val){
+        a->map[ind] = 1;
+      }else{
+        a->map[ind] = 0;
+      }
+    }
+  }
+  return a;
+}
+
+assignment* solve(size_t start, size_t end, formula* f, assignment* a){
+  assignment* a_curr = a;
+  for(size_t curr_num = start; curr_num < end+1; ++curr_num){
+    assignment* a_new = get_case(a_curr,curr_num,a_curr->size);
+    if(interpret(f,a_new)) return a_new;
+    else a_curr = a_new;
+  }
+  return NULL;
+}
+
 
 int main(int argc, char **argv) {
   if (argc < 2) {
@@ -69,22 +108,23 @@ int main(int argc, char **argv) {
     exit(1);
   }
 
-	init_lib(argv[1]);
+  init_lib(argv[1]);
 
   while (1) {
     formula *f = next_formula();
-		if (f == NULL) {
-			break;
-		}
+    if (f == NULL) {
+      break;
+    }
     assignment *a = make_assignment(f);
-    assign_values(a);
-    print_assignment_map(a);
-    printf("Answer:%s\n",interpret(f,a) ? "True":"False");
+    size_t num_combs = 1 << (a->size);
+    assignment* a_sol = solve(0,num_combs-1,f,a);
+    print_assignment_map(a_sol);
+    /*printf("Answer:%s\n",interpret(f,a) ? "True":"False");*/
     free_assignment(a);
     free_formula(f);
   }
 
-	free_lib();
+  free_lib();
   
   return 0;
 }
