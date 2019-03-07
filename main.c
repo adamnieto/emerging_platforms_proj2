@@ -5,7 +5,18 @@
 
 #include "sat.h"
 #include "util.h"
-#include<math.h>
+
+#include <math.h>
+#include <assert.h>
+
+typedef struct pair {
+  long start;
+  long end;
+} pair;
+
+void free_pair(pair* p){
+  free(p);
+}
 
 
 // Checks if assignment a will satisfy formula f. 
@@ -96,6 +107,33 @@ assignment* solve(size_t start, size_t end, formula* f, assignment* a){
   }
   return NULL;
 }
+// Gives back the start and end numbers (represents start and end of their cases for each worker) 
+pair* distribute(size_t num_combs, size_t num_workers, size_t worker_id){
+  // Checks
+  assert(worker_id > 0); // workers ids need to start at 1
+  assert(num_workers > 0);
+  assert(num_combs > 0);
+
+  long split_len = floor((num_combs+1)/num_workers); // num_combs+1 is to include 0 as a case
+  long start = 0 + (split_len * (worker_id-1));
+  long end = start + (split_len-1);
+
+  // Special Cases  
+
+  // Will give the last worker more cases if split wasn't even
+  if(num_combs - end > 0 && worker_id == num_workers){
+    // if there are more cases and this is the last worker
+    end = num_combs;
+  }
+  if(end < 0) end = 0; // keep number positive 
+  if(end > num_combs) end = num_combs; // keep in domain
+
+  pair* res = malloc(sizeof(pair));
+  res->start = start;
+  res->end = end;
+  return res;
+}
+
 
 
 int main(int argc, char **argv) {
@@ -111,13 +149,29 @@ int main(int argc, char **argv) {
     if (f == NULL) {
       break;
     }
-    assignment *a = make_assignment(f);
-   
+    assignment *a = make_assignment(f); // inital assignment struct
+  
     // My Stuff
     size_t num_combs = 1 << (a->size);
-    assignment* a_sol = solve(0,num_combs-1,f,a);
+    size_t num_workers = 4;
+    
     pretty_print(f);
-    print_assignment_map(a_sol);
+    printf("\n");
+    printf("Number of Combinations: %ld\n",num_combs); 
+
+
+    for(size_t worker_id = 1; worker_id < num_workers+1; ++worker_id){
+      pair* res = distribute(num_combs,num_workers,worker_id);
+      printf("For Worker %ld: [%ld, %ld]\n",worker_id,res->start,res->end);
+      free_pair(res);
+    }
+    printf("\n");
+    
+    
+    
+    /*assignment* a_sol = solve(0,num_combs-1,f,a);*/
+    /*pretty_print(f);*/
+    /*print_assignment_map(a_sol);*/
     
     
     free_assignment(a);
