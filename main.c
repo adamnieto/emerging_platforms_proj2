@@ -8,11 +8,10 @@
 #include<math.h>
 
 
-// Checks if a satisfies f. 
+// Checks if assignment a will satisfy formula f. 
 int interpret(formula* f, assignment* a){
   switch(f->conn){
     case AND:{
-     /*printf("AND\n");*/
      int arg1 = interpret(f->land.f,a);
      if(f->land.next != NULL){
       int arg2 = interpret(f->land.next,a);
@@ -22,31 +21,25 @@ int interpret(formula* f, assignment* a){
      }
     }
     case OR: {
-     /*printf("OR1\n");*/
      int arg1 = interpret(f->lor.f1,a);
-     /*printf("OR2\n");*/
      int arg2 = interpret(f->lor.f2,a);
-     /*printf("OR3\n");*/
      int arg3 = interpret(f->lor.f3,a);
      return arg1 || arg2 || arg3;
     }
     case NEG:{
-     /*printf("NEG\n");*/
      int arg = interpret(f->lneg.f,a);
      return !arg;
     }
     case VAR:{
-      /*printf("VAR\n");*/
-      printf("LITERAL: %d\n",f->lvar.lit);
       return a->map[f->lvar.lit];
     }
     default:
-      return -1;
+      return 0; // returns false
   }
 }
 
 void print_assignment_map(assignment* a){
-  printf("Assignment Map: ");
+  printf("\t Assignment Map: ");
   for(size_t i = 0; i < a->size; ++i){
     if(i < a->size-1){
       printf("%d ",a->map[i]);
@@ -54,48 +47,51 @@ void print_assignment_map(assignment* a){
       printf("%d\n",a->map[i]);
     }
   }
-  return;
 }
-
-/*void assign_values(assignment* a){*/
-  /*size_t num_pos_solns = 1;*/
-  /*num_pos_solns << a->size;*/
-  /*printf("Num Pos Solutions: %d\n",num_pos_solns);*/
-  
-/*}*/
-
-void print_binary(size_t num, size_t num_bits){
-  long current;
+// Prints the binary representation of a number and to length num_bits
+void print_binary(size_t num, int num_bits){
+  long temp;
   for(long i = num_bits; i >= 0; i--){
-    current = num >> i;
-    if (current & 1) printf("1");
+    temp = num >> i;
+    if (temp & 1) printf("1");
     else printf("0");
   }
   printf("\n");
 }
 
-assignment* get_case(assignment* a, size_t num, size_t len){
-  size_t current;
-  for(size_t ind = len; ind >= 0; ind--){
-    current = num >> ind;
-    size_t bool_val = (current & 1);
-    if(a->map[ind] == bool_val) continue;
+assignment* get_case(assignment* a, size_t num, int len){
+  assignment* a_new = a;
+  // num represent the current case (represented in the nums binary)
+  long temp = 0; // holds the bits 
+  size_t counter = 0; // keeps track of the current index in of map 
+  // Iterate over each bit and correct the assignment map if we find a difference
+  for(long ind = len; ind >= 0; ind--){
+    temp = num >> ind;
+    long bool_val = (temp & 1);
+    if(a_new->map[counter] == bool_val) continue; // means bit and array truth value are exactly the same 
     else{ 
+      // Means we need to change the value in the assignment array
       if(bool_val){
-        a->map[ind] = 1;
+        a_new->map[counter] = 1;
       }else{
-        a->map[ind] = 0;
+        a_new->map[counter] = 0;
       }
     }
+    counter += 1;
   }
-  return a;
+  return a_new;
 }
 
 assignment* solve(size_t start, size_t end, formula* f, assignment* a){
   assignment* a_curr = a;
   for(size_t curr_num = start; curr_num < end+1; ++curr_num){
     assignment* a_new = get_case(a_curr,curr_num,a_curr->size);
-    if(interpret(f,a_new)) return a_new;
+    int res = interpret(f,a_new); 
+    // Debugging
+    /*printf("Trying:\t");*/
+    /*print_assignment_map(a_new);*/
+    /*printf("Res from Interpret: %d\n", res);*/
+    if(res) return a_new;
     else a_curr = a_new;
   }
   return NULL;
@@ -116,10 +112,14 @@ int main(int argc, char **argv) {
       break;
     }
     assignment *a = make_assignment(f);
+   
+    // My Stuff
     size_t num_combs = 1 << (a->size);
     assignment* a_sol = solve(0,num_combs-1,f,a);
+    pretty_print(f);
     print_assignment_map(a_sol);
-    /*printf("Answer:%s\n",interpret(f,a) ? "True":"False");*/
+    
+    
     free_assignment(a);
     free_formula(f);
   }
