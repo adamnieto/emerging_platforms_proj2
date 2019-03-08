@@ -36,6 +36,7 @@ dynam_str* newStr(char* str){
 
 dynam_str* strcatr(dynam_str* dest, char* source){
   if(dest->size + strlen(source)*sizeof(char) > dest->capacity){
+    printf("HELLO\n");
     dest->str = (char*)realloc(dest->str, dest->capacity*2);
     dest->capacity *= 2;
   }
@@ -201,11 +202,11 @@ int main(int argc, char **argv) {
    strcpy(dest,"hello");
    dynam_str* dest1 = newStr(dest);
    free(dest);
-   char* src = (char*) malloc(((n/2)+1)*sizeof(char));
-   strcpy(src,"hi");
+   char* src = (char*) malloc((n*3+1)*sizeof(char));
+   strcpy(src,"hi3456789123456789jj\0");
    dynam_str* new_str = strcatr(dest1, src);
    free(src);
-   printf("New String: %s\n",new_str->str);
+   printf("\nNew String: %s\n",new_str->str);
     
   /*MPI_Init(&argc, &argv);*/
   
