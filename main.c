@@ -30,7 +30,7 @@ dynam_str* newStr(char* str){
   res_str->str = malloc(2*(strlen(str)+1)*sizeof(char));
   res_str->size = (strlen(str)+1)*sizeof(char);
   res_str->capacity = 2*(strlen(str)+1)*sizeof(char);
-  res_str->str = str;
+  strcpy(res_str->str,str);
   return res_str;
 }
 
@@ -39,9 +39,11 @@ dynam_str* strcatr(dynam_str* dest, char* source){
     dest->str = (char*)realloc(dest->str, dest->capacity*2);
     dest->capacity *= 2;
   }
-  strcpy(dest->str,source);
+  printf("dest->size: %ld\n",dest->size);
+  printf("dest->capacity: %ld\n",dest->capacity);
+  printf("strlen(source) : %ld\n",strlen(source));
+  strcat(dest->str,source);
   dest->size += strlen(source)*sizeof(char);
-  free(source);//?
   return dest;
 }
 
@@ -77,33 +79,33 @@ int interpret(formula* f, assignment* a){
   }
 }
 
-char* encode(formula *f) {
-  switch (f->conn) {
-    case AND:
-      char* s1 = encode(f->land.f);
-      if (f->land.next != NULL) {
-        sprintf("%s"," /\\ ");
-        encode(f->land.next);
-      }
-      break;
-    case OR:
-      printf("(");
-      pretty_print(f->lor.f1);
-      printf(" \\/ ");
-      pretty_print(f->lor.f2);
-      printf(" \\/ ");
-      pretty_print(f->lor.f3);
-      printf(")");
-      break;
-    case NEG:
-      printf("!");
-      pretty_print(f->lneg.f);
-      break;
-    case VAR:
-      printf("%d", f->lvar.lit);
-      break;
-  }
-}
+/*char* encode(formula *f) {*/
+  /*switch (f->conn) {*/
+    /*case AND:*/
+      /*char* s1 = encode(f->land.f);*/
+      /*if (f->land.next != NULL) {*/
+        /*sprintf("%s"," /\\ ");*/
+        /*encode(f->land.next);*/
+      /*}*/
+      /*break;*/
+    /*case OR:*/
+      /*printf("(");*/
+      /*pretty_print(f->lor.f1);*/
+      /*printf(" \\/ ");*/
+      /*pretty_print(f->lor.f2);*/
+      /*printf(" \\/ ");*/
+      /*pretty_print(f->lor.f3);*/
+      /*printf(")");*/
+      /*break;*/
+    /*case NEG:*/
+      /*printf("!");*/
+      /*pretty_print(f->lneg.f);*/
+      /*break;*/
+    /*case VAR:*/
+      /*printf("%d", f->lvar.lit);*/
+      /*break;*/
+  /*}*/
+/*}*/
 
 void print_assignment_map(assignment* a){
   printf("\t Assignment Map: ");
@@ -195,14 +197,16 @@ pair* distribute(size_t num_combs, size_t num_workers, size_t worker_id){
 int main(int argc, char **argv) {
    int n = 10; 
    
-
-
    char* dest = (char*) malloc((n+1)*sizeof(char)); 
-   dest = "hello";
+   strcpy(dest,"hello");
+   dynam_str* dest1 = newStr(dest);
+   free(dest);
    char* src = (char*) malloc(((n/2)+1)*sizeof(char));
-   src = "hi";
-   strcatr(&dest, src);
-  
+   strcpy(src,"hi");
+   dynam_str* new_str = strcatr(dest1, src);
+   free(src);
+   printf("New String: %s\n",new_str->str);
+    
   /*MPI_Init(&argc, &argv);*/
   
   /*int rank, size;*/
