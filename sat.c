@@ -45,6 +45,7 @@ void free_formula(formula *f) {
     case VAR:
       break;
   }
+	free(f);
 } 
 
 void pretty_print(formula *f) {
@@ -116,4 +117,5 @@ assignment* make_assignment(formula *f) {
 
 void free_assignment(assignment *a) {
   free(a->map);
+	free(a);
 }
