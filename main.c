@@ -8,6 +8,7 @@
 
 #include <math.h>
 #include <assert.h>
+#include <string.h>
 
 typedef struct pair {
   long start;
@@ -17,6 +18,33 @@ typedef struct pair {
 void free_pair(pair* p){
   free(p);
 }
+
+typedef struct dynam_str {
+  char* str; /* string */
+  size_t size; /* bytes used not including null terminator */
+  size_t capacity; /* bytes allocated not including null terminator */
+}dynam_str;
+
+dynam_str* newStr(char* str){
+  dynam_str* res_str = malloc(sizeof(dynam_str));
+  res_str->str = malloc(2*(strlen(str)+1)*sizeof(char));
+  res_str->size = (strlen(str)+1)*sizeof(char);
+  res_str->capacity = 2*(strlen(str)+1)*sizeof(char);
+  res_str->str = str;
+  return res_str;
+}
+
+dynam_str* strcatr(dynam_str* dest, char* source){
+  if(dest->size + strlen(source)*sizeof(char) > dest->capacity){
+    dest->str = (char*)realloc(dest->str, dest->capacity*2);
+    dest->capacity *= 2;
+  }
+  strcpy(dest->str,source);
+  dest->size += strlen(source)*sizeof(char);
+  free(source);//?
+  return dest;
+}
+
 
 
 // Checks if assignment a will satisfy formula f. 
@@ -46,6 +74,34 @@ int interpret(formula* f, assignment* a){
     }
     default:
       return 0; // returns false
+  }
+}
+
+char* encode(formula *f) {
+  switch (f->conn) {
+    case AND:
+      char* s1 = encode(f->land.f);
+      if (f->land.next != NULL) {
+        sprintf("%s"," /\\ ");
+        encode(f->land.next);
+      }
+      break;
+    case OR:
+      printf("(");
+      pretty_print(f->lor.f1);
+      printf(" \\/ ");
+      pretty_print(f->lor.f2);
+      printf(" \\/ ");
+      pretty_print(f->lor.f3);
+      printf(")");
+      break;
+    case NEG:
+      printf("!");
+      pretty_print(f->lneg.f);
+      break;
+    case VAR:
+      printf("%d", f->lvar.lit);
+      break;
   }
 }
 
@@ -137,48 +193,70 @@ pair* distribute(size_t num_combs, size_t num_workers, size_t worker_id){
 
 
 int main(int argc, char **argv) {
-  if (argc < 2) {
-    fprintf(stderr, "usage %s: [FORMULA-FILE]\n", argv[0]);
-    exit(1);
-  }
+   int n = 10; 
+   
 
-  init_lib(argv[1]);
 
-  while (1) {
-    formula *f = next_formula();
-    if (f == NULL) {
-      break;
-    }
-    assignment *a = make_assignment(f); // inital assignment struct
+   char* dest = (char*) malloc((n+1)*sizeof(char)); 
+   dest = "hello";
+   char* src = (char*) malloc(((n/2)+1)*sizeof(char));
+   src = "hi";
+   strcatr(&dest, src);
   
-    // My Stuff
-    size_t num_combs = 1 << (a->size);
-    size_t num_workers = 4;
-    
-    pretty_print(f);
-    printf("\n");
-    printf("Number of Combinations: %ld\n",num_combs); 
+  /*MPI_Init(&argc, &argv);*/
+  
+  /*int rank, size;*/
+  /*MPI_Comm_rank(MPI_COMM_WORLD, &rank);*/
+  /*MPI_Comm_size(MPI_COMM_WORLD, &size);*/
 
+  /*if (argc < 2) {*/
+    /*fprintf(stderr, "usage %s: [FORMULA-FILE]\n", argv[0]);*/
+    /*exit(1);*/
+  /*}*/
 
-    for(size_t worker_id = 1; worker_id < num_workers+1; ++worker_id){
-      pair* res = distribute(num_combs,num_workers,worker_id);
-      printf("For Worker %ld: [%ld, %ld]\n",worker_id,res->start,res->end);
-      free_pair(res);
-    }
-    printf("\n");
-    
-    
-    
-    /*assignment* a_sol = solve(0,num_combs-1,f,a);*/
-    /*pretty_print(f);*/
-    /*print_assignment_map(a_sol);*/
-    
-    
-    free_assignment(a);
-    free_formula(f);
-  }
+  /*init_lib(argv[1]);*/
 
-  free_lib();
+  /*if(rank == 0){*/
+    /*while (1) {*/
+      /*formula *f = next_formula();*/
+      /*if (f == NULL) {*/
+        /*break;*/
+      /*}*/
+      /*assignment *a = make_assignment(f); // inital assignment struct*/
+    
+      /*// My Stuff*/
+      /*size_t num_combs = 1 << (a->size);*/
+      /*size_t num_workers = (size_t)rank;*/
+      
+      /*[>pretty_print(f);<]*/
+      /*[>printf("\n");<]*/
+      /*[>printf("Number of Combinations: %ld\n",num_combs); <]*/
+
+      /*for(size_t worker_id = num_workers; worker_id > 0; worker_id--){*/
+        /*pair* worker_cases = distribute(num_combs,num_workers,worker_id);*/
+        /*[>printf("For Worker %ld: [%ld, %ld]\n",worker_id,res->start,res->end);<]*/
+       
+        
+
+        /*free_pair(res);*/
+      /*}*/
+      /*printf("\n");*/
+      
+      /*[>assignment* a_sol = solve(0,num_combs-1,f,a);<]*/
+      /*[>pretty_print(f);<]*/
+      /*[>print_assignment_map(a_sol);<]*/
+      
+      /*free_assignment(a);*/
+      /*free_formula(f);*/
+    /*}*/
+  /*}else{*/
+    
+    /*assignment* a_sol = solve(worker_cases->start);*/
+
+    
+  /*}*/
+
+  /*free_lib();*/
   
   return 0;
 }
