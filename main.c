@@ -41,12 +41,12 @@ void free_dynam_str(dynam_str* dyn_str){
 }
 
 void strcatr(dynam_str* dest, const char* source){
-  size_t source_len = strlen(source)*sizeof(char)+1;
+  size_t source_len = strlen(source)*sizeof(char);
   char* new_str;
   if((dest->size + source_len) > dest->capacity){
     /*printf("CAP:%ld\n",dest->capacity);*/
-    new_str = (char*)malloc((dest->size + source_len*2));
-    dest->capacity = (dest->size + source_len-1)*2;
+    new_str = (char*)malloc((dest->size + (source_len+1)*2));
+    dest->capacity = (dest->size + source_len)*2;
   }else{
     /*printf("IN ELSE\n");*/
     new_str = dest->str;
@@ -61,9 +61,9 @@ void strcatr(dynam_str* dest, const char* source){
   strcpy(new_str,dest->str);
   strcat(new_str,source);
   free(dest->str);
-  dest->str = NULL;
+  dest->str = NULL; // out of sanity
   dest->str = new_str;
-  dest->size += source_len-1;
+  dest->size += source_len;
   /*printf("After\n");*/
   /*printf("dest->size: %ld\n",dest->size);*/
   /*printf("dest->capacity: %ld\n",dest->capacity);*/
@@ -102,33 +102,33 @@ int interpret(formula* f, assignment* a){
   }
 }
 
-/*char* encode(formula *f) {*/
-  /*switch (f->conn) {*/
-    /*case AND:*/
-      /*char* s1 = encode(f->land.f);*/
-      /*if (f->land.next != NULL) {*/
-        /*sprintf("%s"," /\\ ");*/
-        /*encode(f->land.next);*/
-      /*}*/
-      /*break;*/
-    /*case OR:*/
-      /*printf("(");*/
-      /*pretty_print(f->lor.f1);*/
-      /*printf(" \\/ ");*/
-      /*pretty_print(f->lor.f2);*/
-      /*printf(" \\/ ");*/
-      /*pretty_print(f->lor.f3);*/
-      /*printf(")");*/
-      /*break;*/
-    /*case NEG:*/
-      /*printf("!");*/
-      /*pretty_print(f->lneg.f);*/
-      /*break;*/
-    /*case VAR:*/
-      /*printf("%d", f->lvar.lit);*/
-      /*break;*/
-  /*}*/
-/*}*/
+char* encode(formula *f) {
+  switch (f->conn) {
+    case AND:
+      char* s1 = encode(f->land.f);
+      if (f->land.next != NULL) {
+        printf("%s"," /\\ ");
+        encode(f->land.next);
+      }
+      break;
+    case OR:
+      printf("(");
+      pretty_print(f->lor.f1);
+      printf(" \\/ ");
+      pretty_print(f->lor.f2);
+      printf(" \\/ ");
+      pretty_print(f->lor.f3);
+      printf(")");
+      break;
+    case NEG:
+      printf("!");
+      pretty_print(f->lneg.f);
+      break;
+    case VAR:
+      printf("%d", f->lvar.lit);
+      break;
+  }
+}
 
 void print_assignment_map(assignment* a){
   printf("\t Assignment Map: ");
