@@ -1,12 +1,16 @@
-CFLAGS=-g -Wall
+CFLAGS=-g -Wall -Wshift-count-overflow
 
 all: main 
 
 sat: sat.h sat.c
-	gcc $(CFLAGS) -c --std=c11 sat.c -o sat.o
+	mpicc $(CFLAGS) -c --std=c11 sat.c -o sat.o
 
 main: sat 
-	gcc $(CFLAGS) --std=c11 -o main main.c sat.o libutil.a
+	#gcc $(CFLAGS) --std=c11 -o main main.c sat.o libutil.a
+	mpicc $(CFLAGS) --std=c11 -o main main.c sat.o libutil.a
+
+run: main
+	mpirun -n 1 ./main simple.txt
 
 checkmem: all 
 		valgrind --leak-check=full --show-leak-kinds=all -v ./main simple.txt
