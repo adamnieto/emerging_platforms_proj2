@@ -15,8 +15,8 @@
 
 
 typedef struct pair {
-  long start;
-  long end;
+  unsigned long long start;
+  unsigned long long end;
 } pair;
 
 void free_pair(pair* p){
@@ -328,7 +328,58 @@ size_t count_num_variables(formula* f){
   return res;
 }
 
+typedef struct message{
+  unsigned long long start;
+  unsigned long long end;
+  formula* f;
+}message;
 
+
+
+
+message* decode_message(char* input_string){
+  message* res = (message*)malloc(sizeof(message));
+  char* tokens = strtok(input_string, ",");
+  // char* array[3];
+  
+  int counter = 0;
+  while (tokens != NULL){
+    // start
+    if(counter == 0){
+      res->start = strtoull(tokens,NULL,10);
+    }else if(counter == 1){
+      res->end = strtoull(tokens,NULL,10);
+    }else{
+      res->f = decode(tokens);
+    }
+    ++counter;
+    tokens = strtok(NULL, ",");
+  }
+  return res;
+
+}
+
+dynam_str* encode_message(dynam_str* formula_str, unsigned long long start_bin, 
+                    unsigned long long end_bin){
+
+  dynam_str* res_message = newStr("");
+
+  char* temp1 = (char*)malloc(64*sizeof(char));
+  char* temp2 = (char*)malloc(64*sizeof(char));
+  
+  sprintf(temp1,"%llu", start_bin); // convert start_bin to string
+  // ulltoa(start_bin, temp1, 10); // convert start_bin to string
+  strcatr(res_message, temp1);
+  strcatr(res_message, ",");
+
+  sprintf(temp2,"%llu",end_bin);// convert end_bin to string
+  // ulltoa(end_bin, temp2, 10); 
+  strcatr(res_message, temp2);
+  strcatr(res_message, ",");
+
+  strcatr(res_message,formula_str->str);
+  return res_message;
+}
 
 int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
@@ -350,10 +401,10 @@ int main(int argc, char **argv) {
       if (f == NULL) {
         break;
       }
-      dynam_str* encode_str = newStr("");
-      encode(f,encode_str);
-      printf("encode_str->str: %s\n",encode_str->str);
-      assignment *a = make_assignment(f); // inital assignment struct
+      dynam_str* encode_formula_str = newStr("");
+      encode(f,encode_formula_str);
+      printf("encode_formula_str->str: %s\n",encode_formula_str->str);
+      // assignment *a = make_assignment(f); // inital assignment struct
       // My Stuff
      int num_variables = count_num_variables(f);
       // long* lookup = (long*)malloc(sizeof(long)*);
@@ -362,26 +413,37 @@ int main(int argc, char **argv) {
       printf("Size of: %lu\n",sizeof(unsigned long long));
       unsigned long long num_combs = 1;
       num_combs <<= num_variables;
-      /*size_t num_workers = (size_t)rank*/
-      size_t num_workers = 5; 
+      // size_t num_workers = (size_t)rank;
+      size_t num_workers = 4;
       /*pretty_print(f);*/
       /*printf("\n");*/
       printf("Number of Combinations: %llu\n",num_combs);
 
       for(size_t worker_id = num_workers; worker_id > 0; worker_id--){
         pair* worker_cases = distribute(num_combs,num_workers,worker_id);
-        printf("For Worker %ld: [%ld, %ld]\n",worker_id,worker_cases->start,worker_cases->end);
-        int sol = solve(worker_cases->start,worker_cases->end,f,a);
-        if(sol){
-          printf("ANSWER:\n");
-          print_assignment_map(a);
-        }
+        printf("For Worker %ld: [%lld, %lld]\n",worker_id,worker_cases->start,worker_cases->end);
+        dynam_str* mesg = encode_message(encode_formula_str,worker_cases->start,worker_cases->end);
+        printf("ENCODE MESSAGE: %s\n", mesg->str);
+        message* mesg_obj = decode_message(mesg->str);
+
+        printf("Decode Message Start: %llu\n", mesg_obj->start);
+        printf("Decode Message End: %llu\n", mesg_obj->end);
+        dynam_str* test = newStr("");
+        encode(mesg_obj->f,test);
+        printf("Decode Message Formula: %s\n", test->str);  
+        free_dynam_str(test);
+        // int sol = solve(worker_cases->start,worker_cases->end,f,a);
+        // if(sol){
+        //   printf("ANSWER:\n");
+        //   print_assignment_map(a);
+        // }
+        free_dynam_str(mesg);
         free_pair(worker_cases);
       }
       /*printf("\n");*/
       
-      free_assignment(a);
-      free_dynam_str(encode_str);
+      // free_assignment(a);
+      free_dynam_str(encode_formula_str);
       free_formula(f);
     }
   }
