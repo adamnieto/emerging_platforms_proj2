@@ -102,31 +102,39 @@ int interpret(formula* f, assignment* a){
   }
 }
 
-char* encode(formula *f) {
+void encode(formula *f, dynam_str* res) {
   switch (f->conn) {
-    case AND:
-      char* s1 = encode(f->land.f);
+    case AND:{
+      encode(f->land.f, res);
       if (f->land.next != NULL) {
-        printf("%s"," /\\ ");
-        encode(f->land.next);
+        strcatr(res, " /\\ ");
+        encode(f->land.next, res);
       }
       break;
-    case OR:
-      printf("(");
-      pretty_print(f->lor.f1);
-      printf(" \\/ ");
-      pretty_print(f->lor.f2);
-      printf(" \\/ ");
-      pretty_print(f->lor.f3);
-      printf(")");
+     }
+    case OR:{
+      strcatr(res,"(");
+      encode(f->lor.f1,res);
+      strcatr(res," \\/ ");
+      encode(f->lor.f2,res);
+      strcatr(res," \\/ ");
+      encode(f->lor.f3,res);
+      strcatr(res, ")");
       break;
-    case NEG:
-      printf("!");
-      pretty_print(f->lneg.f);
+    }
+    case NEG:{
+      strcatr(res,"!");
+      encode(f->lneg.f,res);
       break;
-    case VAR:
-      printf("%d", f->lvar.lit);
+    }
+    case VAR:{
+      char* string;
+      asprintf(&string,"%d",f->lvar.lit);
+      strcatr(res,(const char*)string);
       break;
+    }
+    default:
+        break;
   }
 }
 
@@ -220,15 +228,23 @@ pair* distribute(size_t num_combs, size_t num_workers, size_t worker_id){
 int main(int argc, char **argv) {
    /*int n = 10;*/
    
-   dynam_str* dest1 = newStr("hello");
-   strcatr(dest1, " please stop giving me memory leaks");
-   strcatr(dest1, " I BEG");
-   printf("\nNew String: %s\n",dest1->str);
-   free_dynam_str(dest1);
+   /*dynam_str* dest1 = newStr("hello");*/
+   /*strcatr(dest1, " please stop giving me memory leaks");*/
+   /*strcatr(dest1, " I BEG");*/
+   /*printf("\nNew String: %s\n",dest1->str);*/
+   /*free_dynam_str(dest1);*/
 
-
-
-
+  while (1) {
+    formula *f = next_formula();
+    if (f == NULL) {
+      break;
+    }
+    dynam_str* res = newStr("");
+    encode(f,res);
+    printf("res->str: %s\n",res->str);
+    free_dynam_str(res);
+    free_formula(f);
+  }
 
 
 
