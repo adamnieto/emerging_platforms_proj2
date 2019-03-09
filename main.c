@@ -10,6 +10,7 @@
 #include <assert.h>
 #include <string.h>
 
+
 typedef struct pair {
   long start;
   long end;
@@ -20,32 +21,53 @@ void free_pair(pair* p){
 }
 
 typedef struct dynam_str {
-  char* str; /* string */
-  size_t size; /* bytes used not including null terminator */
-  size_t capacity; /* bytes allocated not including null terminator */
+  char* str; // string 
+  size_t size; // bytes used not including null terminator 
+  size_t capacity; // bytes allocated not including null terminator 
 }dynam_str;
 
-dynam_str* newStr(char* str){
-  dynam_str* res_str = malloc(sizeof(dynam_str));
-  res_str->str = malloc(2*(strlen(str)+1)*sizeof(char));
-  res_str->size = (strlen(str)+1)*sizeof(char);
-  res_str->capacity = 2*(strlen(str)+1)*sizeof(char);
+dynam_str* newStr(const char *str){
+  dynam_str* res_str = (dynam_str*)malloc(sizeof(dynam_str) );
+  res_str->size = (strlen(str))*sizeof(char);
+  res_str->str = (char*)malloc(res_str->size+1);
+  res_str->capacity = res_str->size;
   strcpy(res_str->str,str);
   return res_str;
 }
 
-dynam_str* strcatr(dynam_str* dest, char* source){
-  if(dest->size + strlen(source)*sizeof(char) > dest->capacity){
-    printf("HELLO\n");
-    dest->str = (char*)realloc(dest->str, dest->capacity*2);
-    dest->capacity *= 2;
+void free_dynam_str(dynam_str* dyn_str){
+  free(dyn_str->str);
+  free(dyn_str);
+}
+
+void strcatr(dynam_str* dest, const char* source){
+  size_t source_len = strlen(source)*sizeof(char)+1;
+  char* new_str;
+  if((dest->size + source_len) > dest->capacity){
+    /*printf("CAP:%ld\n",dest->capacity);*/
+    new_str = (char*)malloc((dest->size + source_len*2));
+    dest->capacity = (dest->size + source_len-1)*2;
+  }else{
+    /*printf("IN ELSE\n");*/
+    new_str = dest->str;
+    strcat(new_str,source);
+    return; 
   }
-  printf("dest->size: %ld\n",dest->size);
-  printf("dest->capacity: %ld\n",dest->capacity);
-  printf("strlen(source) : %ld\n",strlen(source));
-  strcat(dest->str,source);
-  dest->size += strlen(source)*sizeof(char);
-  return dest;
+  /*printf("Before\n");*/
+  /*printf("dest->size: %ld\n",dest->size);*/
+  /*printf("dest->capacity: %ld\n",dest->capacity);*/
+  /*printf("strlen(source) : %ld\n",source_len);*/
+  
+  strcpy(new_str,dest->str);
+  strcat(new_str,source);
+  free(dest->str);
+  dest->str = NULL;
+  dest->str = new_str;
+  dest->size += source_len-1;
+  /*printf("After\n");*/
+  /*printf("dest->size: %ld\n",dest->size);*/
+  /*printf("dest->capacity: %ld\n",dest->capacity);*/
+  /*printf("strlen(source) : %ld\n",source_len);*/
 }
 
 
@@ -196,19 +218,23 @@ pair* distribute(size_t num_combs, size_t num_workers, size_t worker_id){
 
 
 int main(int argc, char **argv) {
-   int n = 10; 
+   /*int n = 10;*/
    
-   char* dest = (char*) malloc((n+1)*sizeof(char)); 
-   strcpy(dest,"hello");
-   dynam_str* dest1 = newStr(dest);
-   free(dest);
-   char* src = (char*) malloc((n*3+1)*sizeof(char));
-   strcpy(src,"hi3456789123456789jj\0");
-   dynam_str* new_str = strcatr(dest1, src);
-   free(src);
-   printf("\nNew String: %s\n",new_str->str);
-    
-  /*MPI_Init(&argc, &argv);*/
+   dynam_str* dest1 = newStr("hello");
+   strcatr(dest1, " please stop giving me memory leaks");
+   strcatr(dest1, " I BEG");
+   printf("\nNew String: %s\n",dest1->str);
+   free_dynam_str(dest1);
+
+
+
+
+
+
+
+
+
+    /*MPI_Init(&argc, &argv);*/
   
   /*int rank, size;*/
   /*MPI_Comm_rank(MPI_COMM_WORLD, &rank);*/

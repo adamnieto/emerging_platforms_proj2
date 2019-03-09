@@ -8,6 +8,9 @@ sat: sat.h sat.c
 main: sat 
 	gcc $(CFLAGS) --std=c11 -o main main.c sat.o libutil.a
 
+checkmem: all 
+		valgrind --leak-check=full -v ./main simple.txt
+
 .PHONY: clean
 
 clean:
