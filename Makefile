@@ -9,7 +9,7 @@ main: sat
 	gcc $(CFLAGS) --std=c11 -o main main.c sat.o libutil.a
 
 checkmem: all 
-		valgrind --leak-check=full -v ./main simple.txt
+		valgrind --leak-check=full --show-leak-kinds=all -v ./main simple.txt
 
 .PHONY: clean
 

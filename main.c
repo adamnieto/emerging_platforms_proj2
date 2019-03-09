@@ -45,14 +45,15 @@ void strcatr(dynam_str* dest, const char* source){
   char* new_str;
   if((dest->size + source_len) > dest->capacity){
     /*printf("CAP:%ld\n",dest->capacity);*/
-    new_str = (char*)malloc((dest->size + (source_len+1)*2));
-    dest->capacity = (dest->size + source_len)*2;
-  }else{
-    /*printf("IN ELSE\n");*/
-    new_str = dest->str;
-    strcat(new_str,source);
-    return; 
+    new_str = (char*)malloc((dest->size + (source_len+1)));
+    dest->capacity = (dest->size + source_len);
   }
+  /*}else{*/
+    /*[>printf("IN ELSE\n");<]*/
+    /*new_str = dest->str;*/
+    /*strcat(new_str,source);*/
+    /*return; */
+  /*}*/
   /*printf("Before\n");*/
   /*printf("dest->size: %ld\n",dest->size);*/
   /*printf("dest->capacity: %ld\n",dest->capacity);*/
@@ -131,6 +132,7 @@ void encode(formula *f, dynam_str* res) {
       char* string;
       asprintf(&string,"%d",f->lvar.lit);
       strcatr(res,(const char*)string);
+      free(string);
       break;
     }
     default:
@@ -233,7 +235,11 @@ int main(int argc, char **argv) {
    /*strcatr(dest1, " I BEG");*/
    /*printf("\nNew String: %s\n",dest1->str);*/
    /*free_dynam_str(dest1);*/
-
+  if (argc < 2) {
+    fprintf(stderr, "usage %s: [FORMULA-FILE]\n", argv[0]);
+    exit(1);
+  }
+  init_lib(argv[1]);
   while (1) {
     formula *f = next_formula();
     if (f == NULL) {
