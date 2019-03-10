@@ -105,6 +105,58 @@ void insert(ivec *iv, int val) {
   iv->size++;
 }
 
+void print_vector(ivec* vector){
+  for(size_t i = 0; i < vector->size; ++i){
+    if(i == 0){
+      printf("[");
+    }
+    if (i == vector->size-1){
+      printf("%d]\n",vector->arr[i]);
+      break;
+    }
+    printf("%d,",vector->arr[i]);
+  
+  }
+}
+
+dynam_str* vector_to_string(ivec* vector){
+  print_vector(vector);
+  dynam_str* res = newStr("");
+  for(size_t i = 0; i < vector->size; ++i){
+    // if(i == 0){
+    //   strcatr(res,"[");
+    // }
+    if (i == vector->size-1){
+      char* temp = (char*)malloc(sizeof(char)*64);
+      sprintf(temp,"%d\n",vector->arr[i]);
+      strcatr(res,temp);
+      free(temp);
+      break;
+    }
+    char* temp1 = (char*)malloc(sizeof(char)*64);
+    sprintf(temp1,"%d,",vector->arr[i]);
+    strcatr(res,temp1);
+    free(temp1);
+  }
+  return res;
+}
+
+ivec* char_star_to_ivec(char* ivec_str){
+  // Check
+  assert(ivec_str != NULL);
+
+  int default_cap = 10;
+  ivec* res = new_ivec(default_cap);
+
+  char* tokens = strtok(ivec_str, ",");
+  while(tokens != NULL){
+    int curr_element = atoi(tokens);
+    insert(res,curr_element);
+    tokens = strtok(NULL, ",");
+  }
+  return res;
+}
+
 
 // Checks if assignment a will satisfy formula f. 
 int interpret(formula* f, assignment* a){
@@ -270,78 +322,80 @@ pair* distribute(size_t num_combs, size_t num_workers, size_t worker_id){
   return res;
 }
 
-int dedup(int *array, int length){
-  int res = length;
+void dedup(ivec* vector, int length){
+  int* array = vector->arr;
+  int new_size = length;
+
   int *current, *end = array + length - 1;
   for (current = array + 1; array < end; array++, current = array + 1){
     while(current <= end){
       if(*current == *array ){
         *current = *end--;
-        res--;
+        new_size--;
       }else{
         current++;
       }
     }
   }
-  return res;
+  vector->size = new_size;
 }
 
 
-size_t count_num_variables_helper(formula* f, ivec* all_variables){
+void generate_lookup_table_helper(formula* f, ivec* all_variables){
   switch (f->conn) {
     case AND:{
-      size_t len1 = count_num_variables_helper(f->land.f, all_variables);
+      generate_lookup_table_helper(f->land.f, all_variables);
       if (f->land.next != NULL) {
-        size_t len2 = count_num_variables_helper(f->land.next,all_variables);
-        return len1 + len2;
+        generate_lookup_table_helper(f->land.next,all_variables);
       }
-      return len1;
+      break;
     }
     case OR:{
-      size_t len3 = count_num_variables_helper(f->lor.f1,all_variables);
-      size_t len4 = count_num_variables_helper(f->lor.f2,all_variables);
-      size_t len5 = count_num_variables_helper(f->lor.f3,all_variables);
-      return len3 + len4 + len5;
+      generate_lookup_table_helper(f->lor.f1,all_variables);
+      generate_lookup_table_helper(f->lor.f2,all_variables);
+      generate_lookup_table_helper(f->lor.f3,all_variables);
+      break;
     }
     case NEG:{
-      size_t len6 = count_num_variables_helper(f->lneg.f,all_variables);
-      return len6;
+      generate_lookup_table_helper(f->lneg.f,all_variables);
+      break;
     }
     case VAR:{
       insert(all_variables, f->lvar.lit);
-      return 1;
+      break;
     }
     default:{
-      return 0;
+      return;
     }
 
   }
 }
 
-size_t count_num_variables(formula* f){
+
+ivec* generate_lookup_table(formula* f){
   size_t default_cap = 10;
   ivec* all_variables = new_ivec(default_cap);
-  int length = (int)count_num_variables_helper(f,all_variables);
-  int res = dedup(all_variables->arr,length);
-  printf("res:%d\n",res);
-  free_ivec(all_variables);
-  return res;
+  generate_lookup_table_helper(f,all_variables);
+  dedup(all_variables,all_variables->size);
+  return all_variables;
 }
 
 typedef struct message{
   unsigned long long start;
   unsigned long long end;
   formula* f;
+  ivec* lookup_table;
 }message;
 
-
-
+void free_message(message* msg){
+  //free_formula(msg->f);
+  free_ivec(msg->lookup_table);
+}
 
 message* decode_message(char* input_string){
   message* res = (message*)malloc(sizeof(message));
-  char* tokens = strtok(input_string, ",");
-  // char* array[3];
-  
+  char* tokens = strtok(input_string, ":");
+
   int counter = 0;
   while (tokens != NULL){
     // start
@@ -349,18 +403,20 @@ message* decode_message(char* input_string){
       res->start = strtoull(tokens,NULL,10);
     }else if(counter == 1){
       res->end = strtoull(tokens,NULL,10);
-    }else{
+    }else if(counter == 2){
       res->f = decode(tokens);
+    }else{
+      res->lookup_table = char_star_to_ivec(tokens);
     }
     ++counter;
-    tokens = strtok(NULL, ",");
+    tokens = strtok(NULL, ":");
   }
   return res;
 
 }
 
 dynam_str* encode_message(dynam_str* formula_str, unsigned long long start_bin, 
-                    unsigned long long end_bin){
+                    unsigned long long end_bin, ivec* lookup_table){
 
   dynam_str* res_message = newStr("");
 
@@ -368,16 +424,22 @@ dynam_str* encode_message(dynam_str* formula_str, unsigned long long start_bin,
   char* temp2 = (char*)malloc(64*sizeof(char));
   
   sprintf(temp1,"%llu", start_bin); // convert start_bin to string
-  // ulltoa(start_bin, temp1, 10); // convert start_bin to string
   strcatr(res_message, temp1);
-  strcatr(res_message, ",");
+  strcatr(res_message, ":");
 
   sprintf(temp2,"%llu",end_bin);// convert end_bin to string
-  // ulltoa(end_bin, temp2, 10); 
   strcatr(res_message, temp2);
-  strcatr(res_message, ",");
+  strcatr(res_message, ":");
 
-  strcatr(res_message,formula_str->str);
+  strcatr(res_message,formula_str->str); // concat formula
+  strcatr(res_message, ":");
+
+  dynam_str* lookup_str = vector_to_string(lookup_table);
+  strcatr(res_message,lookup_str->str);
+
+  free(temp1);
+  free(temp2);
+  free_dynam_str(lookup_str);
   return res_message;
 }
 
@@ -406,38 +468,38 @@ int main(int argc, char **argv) {
       printf("encode_formula_str->str: %s\n",encode_formula_str->str);
       // assignment *a = make_assignment(f); // inital assignment struct
       // My Stuff
-     int num_variables = count_num_variables(f);
-      // long* lookup = (long*)malloc(sizeof(long)*);
+      ivec* lookup_table = generate_lookup_table(f);
+      print_vector(lookup_table);
+      int num_variables = lookup_table->size;
+      printf("Num Variables: %d\n",num_variables);
       
-      /*size_t num_combs = 1 << (a->size);*/
-      printf("Size of: %lu\n",sizeof(unsigned long long));
       unsigned long long num_combs = 1;
       num_combs <<= num_variables;
       // size_t num_workers = (size_t)rank;
       size_t num_workers = 4;
-      /*pretty_print(f);*/
-      /*printf("\n");*/
-      printf("Number of Combinations: %llu\n",num_combs);
 
+      printf("Number of Combinations: %llu\n",num_combs);
       for(size_t worker_id = num_workers; worker_id > 0; worker_id--){
         pair* worker_cases = distribute(num_combs,num_workers,worker_id);
         printf("For Worker %ld: [%lld, %lld]\n",worker_id,worker_cases->start,worker_cases->end);
-        dynam_str* mesg = encode_message(encode_formula_str,worker_cases->start,worker_cases->end);
-        printf("ENCODE MESSAGE: %s\n", mesg->str);
-        message* mesg_obj = decode_message(mesg->str);
 
+        
+        dynam_str* mesg = encode_message(encode_formula_str,worker_cases->start,worker_cases->end, lookup_table);
+        printf("ENCODE MESSAGE: %s\n", mesg->str);
+
+        message* mesg_obj = decode_message(mesg->str);
         printf("Decode Message Start: %llu\n", mesg_obj->start);
         printf("Decode Message End: %llu\n", mesg_obj->end);
         dynam_str* test = newStr("");
         encode(mesg_obj->f,test);
         printf("Decode Message Formula: %s\n", test->str);  
         free_dynam_str(test);
-        // int sol = solve(worker_cases->start,worker_cases->end,f,a);
-        // if(sol){
-        //   printf("ANSWER:\n");
-        //   print_assignment_map(a);
-        // }
-        free_dynam_str(mesg);
+        dynam_str* lookup_str = vector_to_string(mesg_obj->lookup_table);
+        printf("Decode Message Lookup Table: %s\n",lookup_str->str);
+        free_dynam_str(lookup_str);
+
+        
+        // free_dynam_str(mesg);
         free_pair(worker_cases);
       }
       /*printf("\n");*/
@@ -445,11 +507,18 @@ int main(int argc, char **argv) {
       // free_assignment(a);
       free_dynam_str(encode_formula_str);
       free_formula(f);
+      free_ivec(lookup_table);
     }
   }
   else{
-    printf("hello\n"); 
+    printf("Worker Id: %d\n",rank);
     /*assignment* a_sol = solve(worker_cases->start);*/
+    // MPI_Recv();
+    // int sol = solve(worker_cases->start,worker_cases->end,f,a);
+    //   if(sol){
+    //     printf("ANSWER:\n");
+    //     print_assignment_map(a);
+    //   }
 
   }
   free_lib();
