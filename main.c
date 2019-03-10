@@ -15,6 +15,9 @@
 #define TAG_DATA 0
 #define TAG_WORK 1
 
+// For workers
+unsigned long long num_formulas_recv = 0;
+
 /*========================================Pair============================================*/
 typedef struct pair {
   unsigned long long start;
@@ -76,7 +79,41 @@ void strcatr(dynam_str* dest, const char* source){
   /*printf("strlen(source) : %ld\n",source_len);*/
 }
 /*====================================Dynamic Array=======================================*/
-typedef struct {
+typedef struct ivec_res{
+  assignment** arr; // an array of memory segment pointers
+  int size;
+  int cap;
+} ivec_res;
+
+ivec_res* res_new_ivec(int cap) {
+  ivec_res* iv = malloc(sizeof(ivec_res));
+  iv->arr = malloc(sizeof(assignment*) * cap);
+  iv->size = 0;
+  iv->cap = cap;
+  return iv;
+}
+
+void free_ivec_res(ivec_res *iv) {
+  for(int i = 0; i < iv->size; ++i){
+    free_assignment(iv->arr[i]);
+  }
+  free(iv->arr);
+  free(iv);
+}
+
+void res_insert(ivec_res *iv, assignment* val) {
+  if (iv->size == iv->cap) {
+    assignment** narr = (assignment**)malloc(sizeof(assignment*) * (iv->cap * 2));
+    iv->cap *= 2;
+    memcpy(narr, iv->arr, (sizeof(assignment*) * iv->size));
+    free(iv->arr);
+    iv->arr = narr;
+  }
+  iv->arr[iv->size] = val;
+  iv->size++;
+}
+
+typedef struct ivec{
   int* arr; // an array of memory segment pointers
   int size;
   int cap;
@@ -122,7 +159,6 @@ void print_vector(ivec* vector){
 }
 
 dynam_str* vector_to_string(ivec* vector){
-  print_vector(vector);
   dynam_str* res = newStr("");
   for(size_t i = 0; i < vector->size; ++i){
     // if(i == 0){
@@ -194,7 +230,17 @@ int count_num_digits(int number){
   int count = 0;
   while(number != 0){
      number = number/10;
-     number /= 10;
+    //  number /= 10;
+     ++count;
+  }
+  return count;
+}
+
+
+long count_num_digits_size(long number){
+  long count = 0;
+  while(number != 0){
+     number = number/10;
      ++count;
   }
   return count;
@@ -268,7 +314,7 @@ void print_binary(size_t num, int num_bits){
 /*  011                                                                            */
 /*  111                                                                            */
 void check_pattern(ivec* lookup, assignment* a){
-  printf("LOOKUP SIZE: %d\n",lookup->size);
+  // printf("LOOKUP SIZE: %d\n",lookup->size);
   for(long i = lookup->size-1; i > -1; --i){
     if(i == lookup->size-1 && i == 0) printf("[%d]\n",a->map[lookup->arr[i]]);
     else if (i == lookup->size-1) printf("[%d,",a->map[lookup->arr[i]]);
@@ -307,8 +353,8 @@ void get_case(assignment* a, unsigned long long num, size_t len, ivec* lookup){
     }
     // ++counter;
   }
-  check_pattern(lookup,a);
-  print_assignment_map(a);
+  // check_pattern(lookup,a);
+  // print_assignment_map(a);
   /*return a_new;*/
 }
 /*====================================Sorting===============================================*/
@@ -337,7 +383,7 @@ int solve(unsigned long long start, unsigned long long end, formula* f, assignme
   // insertion_sort(lookup->arr,lookup->size);
   // print_vector(lookup);
   for(unsigned long long curr_num = start; curr_num < end+1; ++curr_num){
-    printf("Current Number: %llu\n", curr_num);
+    // printf("Current Number: %llu\n", curr_num);
     get_case(a,curr_num,lookup->size, lookup);
 
     int res = interpret(f,a); 
@@ -526,95 +572,123 @@ int main(int argc, char **argv) {
   }
 
   init_lib(argv[1]);
-
+  // For the master
   if(rank == 0){
+    int num_formulas = 0;
+    ivec_res* res_buff = res_new_ivec(10);
+    MPI_Request *reqs = malloc(sizeof(MPI_Request) * ((size-1) * 2));
+    MPI_Status *stats = malloc(sizeof(MPI_Status) * ((size-1) * 2));
+
     while (1) {
       formula *f = next_formula();
+      ++num_formulas;
       if (f == NULL) {
         break;
       }
+
+      assignment* result_assignment = make_assignment(f); // inital assignment struct
+      res_insert(res_buff,result_assignment);
       dynam_str* encode_formula_str = newStr("");
       encode(f,encode_formula_str);
-      printf("encode_formula_str->str: %s\n",encode_formula_str->str);
+      // printf("encode_formula_str->str: %s\n",encode_formula_str->str);
       // assignment *a = make_assignment(f); // inital assignment struct
       // My Stuff
       ivec* lookup_table = generate_lookup_table(f);
-      print_vector(lookup_table);
+      // print_vector(lookup_table);
       int num_variables = lookup_table->size;
-      printf("Num Variables: %d\n",num_variables);
+      // printf("Num Variables: %d\n",num_variables);
       
       unsigned long long num_combs = 1;
       num_combs <<= num_variables;
-      // size_t num_workers = (size_t)rank;
-      size_t num_workers = 4;
+      size_t num_workers = size;
+      // printf("Num_workers: %lu\n", num_workers);
 
-      printf("Number of Combinations: %llu\n",num_combs);
-      for(size_t worker_id = 1; worker_id < num_workers+1; ++worker_id){
+      // printf("Number of Combinations: %llu\n",num_combs);
+      // Sending formulas to workers
+      for(size_t worker_id = 1; worker_id < num_workers; ++worker_id){
         pair* worker_cases = distribute(num_combs,num_workers,worker_id);
-        printf("For Worker %ld: [%lld, %lld]\n",worker_id,worker_cases->start,worker_cases->end);
+        // printf("For Worker %ld: [%lld, %lld]\n",worker_id,worker_cases->start,worker_cases->end);
 
         
         dynam_str* mesg = encode_message(encode_formula_str,worker_cases->start,worker_cases->end, lookup_table);
         printf("Worker Encoded Message: %s\n", mesg->str);
-
-        message* msg_obj = decode_message(mesg->str);
-        // printf("Decode Message Start: %llu\n", mesg_obj->start);
-        // printf("Decode Message End: %llu\n", mesg_obj->end);
-        // dynam_str* test = newStr("");
-        // encode(mesg_obj->f,test);
-        // printf("Decode Message Formula: %s\n", test->str);  
-        // free_dynam_str(test);
-        // dynam_str* lookup_str = vector_to_string(mesg_obj->lookup_table);
-        // printf("Decode Message Lookup Table: %s\n",lookup_str->str);
-        // free_dynam_str(lookup_str);
-        assignment* a = make_assignment(f);
-        int sol = solve(msg_obj->start, msg_obj->end, msg_obj->f, a, msg_obj->lookup_table);
-        if(sol){
-          printf("ANSWER:\n");
-          print_assignment_map(a);
-        }else{
-          printf("Case Failed\n");
-        }
+        // printf("mesg->size = %ld\n",mesg->size);
+        // long size_of_length = count_num_digits_size((long)mesg->size);
+        // char* message_size_str = (char*)malloc((size_of_length+1)*sizeof(char));
+        // sprintf(message_size_str,"%ld",size_of_length);
+        MPI_Send(mesg->str, strlen(mesg->str)+1, MPI_CHAR, 1, TAG_WORK, MPI_COMM_WORLD);
+        // MPI_Issend(mesg->str, strlen(mesg->str)+1, MPI_CHAR, 1, TAG_WORK, MPI_COMM_WORLD, &reqs[worker_id-1]);
+        
 
 
-        free_message(msg_obj);
+
+        // free_message(msg_obj);
         free_dynam_str(mesg);
         free_pair(worker_cases);
       }
-      
+      // assignment* result_assignment = make_assignment(f); // inital assignment struct
+      // for(int worker_id = 1; worker_id < num_workers+1; ++worker_id){
+      //   MPI_Irecv(result_assignment->map, result_assignment->size, MPI_INT, worker_id, TAG_DATA,MPI_COMM_WORLD, &reqs[(worker_id-1)+(size-1)]);
+      //   break;
+      // }
+      // // MPI_Waitall((size-1)*2, reqs, stats);
+      // // MPI_Wait(reqs, stats );
+      // int index; 
+      // MPI_Waitany(0, reqs, &index, stats);
+      // print_assignment_map(result_assignment);
       // free_assignment(a);
       free_dynam_str(encode_formula_str);
       free_formula(f);
       free_ivec(lookup_table);
     }
+    int num_formulas_counter = 0;
+    while(num_formulas_counter < num_formulas){
+      printf("STOP\n");
+      for(int worker_id = 1; worker_id < size+1; ++worker_id){
+        // MPI_Irecv(res_buff->arr[num_formulas_counter]->map, res_buff->arr[num_formulas_counter]->size, MPI_INT, worker_id, num_formulas_counter+1,MPI_COMM_WORLD, &reqs[(worker_id-1)+(size-1)]);
+        MPI_Recv(res_buff->arr[num_formulas_counter]->map, res_buff->arr[num_formulas_counter]->size, MPI_INT, worker_id, num_formulas_counter+1,MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        print_assignment_map(res_buff->arr[num_formulas_counter]);
+        ++num_formulas_counter;
+        break;
+      }
+      // MPI_Waitall((size-1)*2, reqs, stats);
+      // MPI_Wait(reqs, stats );
+      int index; 
+      MPI_Waitany(1, reqs, &index, stats);
+
+    }
+    // MPI_Broadcast();
   }
   else{
     // For WORKERS ONLY
     printf("Worker Id: %d\n",rank);
+    MPI_Status *status = malloc(sizeof(MPI_Status) * ((size-1) * 2));
+    int msg_size;
 
+    MPI_Probe(0, TAG_WORK, MPI_COMM_WORLD, status);
+    MPI_Get_count(status, MPI_CHAR, &msg_size); 
+    // printf("status.MPI_SOURCE = %d, status.MPI_TAG=%d, count = %d\n",
+    // status->MPI_SOURCE, status->MPI_TAG, msg_size); 
+    // printf("Message Size: %d\n",msg_size);
 
-    MPI_Probe(0, ANY_TAG, MPI_COMM_WORLD, &status);
-    int count;
-    MPI_Get_count(&status, MPI_CHAR, &count); 
-    printf("status.MPI_SOURCE = %d, status.MPI_TAG=%d, count = %d\n",
-    status.MPI_SOURCE, status.MPI_TAG, count); 
-    MPI_Recv(dr, count, MPI_CHAR, 0, tag, MPI_COMM_WORLD, &status);
+    // Recieve Message
+    char* msg = (char*)malloc(sizeof(char)*msg_size);
 
-
-    // dynam_str* msg = newStr("");
+    MPI_Recv(msg, msg_size, MPI_CHAR, 0, TAG_WORK, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
   
-    // message* msg_obj = decode_message(msg->str);
-    // free_dynam_str(msg);
+    printf("MESSAGE: %s\n", msg);
+    message* msg_obj = decode_message(msg);
+    ++num_formulas_recv;
+    assignment* a = make_assignment(msg_obj->f);
+    int sol = solve(msg_obj->start,msg_obj->end,msg_obj->f,a,msg_obj->lookup_table);  
+    if(sol){
 
-    // int sol = solve(msg_obj->start,msg_obj->end,msg_obj->f,a,msg->lookup_table);  
-    // MPI_Recv();
-    /*assignment* a_sol = solve(worker_cases->start);*/
-    // int sol = solve(worker_cases->start,worker_cases->end,f,a);
-    //   if(sol){
-    //     printf("ANSWER:\n");
-    //     print_assignment_map(a);
-    //   }
-
+      printf("ANSWER:\n");
+      print_assignment_map(a);
+      MPI_Send(a->map, a->size, MPI_INT, 0, num_formulas_recv, MPI_COMM_WORLD);
+    }
+    free(msg);
+    free_message(msg_obj);
   }
   free_lib();
   MPI_Finalize();
