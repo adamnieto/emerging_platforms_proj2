@@ -1,4 +1,4 @@
-CFLAGS=-g -Wall -Wshift-count-overflow
+CFLAGS=-g -Wall
 
 all: main 
 
