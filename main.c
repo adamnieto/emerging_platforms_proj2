@@ -576,8 +576,8 @@ int main(int argc, char **argv) {
   if(rank == 0){
     int num_formulas = 0;
     ivec_res* res_buff = res_new_ivec(10);
-    MPI_Request *reqs = malloc(sizeof(MPI_Request) * ((size-1) * 2));
-    MPI_Status *stats = malloc(sizeof(MPI_Status) * ((size-1) * 2));
+    // MPI_Request *reqs = malloc(sizeof(MPI_Request) * ((size-1) * 2));
+    // MPI_Status *stats = malloc(sizeof(MPI_Status) * ((size-1) * 2));
 
     while (1) {
       formula *f = next_formula();
@@ -612,10 +612,6 @@ int main(int argc, char **argv) {
         
         dynam_str* mesg = encode_message(encode_formula_str,worker_cases->start,worker_cases->end, lookup_table);
         printf("Worker Encoded Message: %s\n", mesg->str);
-        // printf("mesg->size = %ld\n",mesg->size);
-        // long size_of_length = count_num_digits_size((long)mesg->size);
-        // char* message_size_str = (char*)malloc((size_of_length+1)*sizeof(char));
-        // sprintf(message_size_str,"%ld",size_of_length);
         MPI_Send(mesg->str, strlen(mesg->str)+1, MPI_CHAR, 1, TAG_WORK, MPI_COMM_WORLD);
         // MPI_Issend(mesg->str, strlen(mesg->str)+1, MPI_CHAR, 1, TAG_WORK, MPI_COMM_WORLD, &reqs[worker_id-1]);
         
@@ -626,11 +622,13 @@ int main(int argc, char **argv) {
         free_dynam_str(mesg);
         free_pair(worker_cases);
       }
-      // assignment* result_assignment = make_assignment(f); // inital assignment struct
       // for(int worker_id = 1; worker_id < num_workers+1; ++worker_id){
-      //   MPI_Irecv(result_assignment->map, result_assignment->size, MPI_INT, worker_id, TAG_DATA,MPI_COMM_WORLD, &reqs[(worker_id-1)+(size-1)]);
+      //   MPI_Recv(res_buff->arr[worker_id-1]->map, res_buff->arr[worker_id-1]->size, MPI_INT, worker_id, num_formulas, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
       //   break;
       // }
+      // int index = 0; 
+      // MPI_Wait(1, reqs, &index, stats);
+      // printf("HELP\n");
       // // MPI_Waitall((size-1)*2, reqs, stats);
       // // MPI_Wait(reqs, stats );
       // int index; 
@@ -642,10 +640,13 @@ int main(int argc, char **argv) {
       free_ivec(lookup_table);
     }
     int num_formulas_counter = 0;
+    MPI_Request request[4];
+    MPI_Status status1[4];
     while(num_formulas_counter < num_formulas){
       printf("STOP\n");
       for(int worker_id = 1; worker_id < size+1; ++worker_id){
         // MPI_Irecv(res_buff->arr[num_formulas_counter]->map, res_buff->arr[num_formulas_counter]->size, MPI_INT, worker_id, num_formulas_counter+1,MPI_COMM_WORLD, &reqs[(worker_id-1)+(size-1)]);
+        printf("ID:%d\n", num_formulas_counter+1);
         MPI_Recv(res_buff->arr[num_formulas_counter]->map, res_buff->arr[num_formulas_counter]->size, MPI_INT, worker_id, num_formulas_counter+1,MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         print_assignment_map(res_buff->arr[num_formulas_counter]);
         ++num_formulas_counter;
@@ -654,8 +655,9 @@ int main(int argc, char **argv) {
       // MPI_Waitall((size-1)*2, reqs, stats);
       // MPI_Wait(reqs, stats );
       int index; 
-      MPI_Waitany(1, reqs, &index, stats);
-
+      
+      MPI_Waitany(1, request, &index, status1);
+      printf("index:%d\n",index);
     }
     // MPI_Broadcast();
   }
@@ -682,10 +684,9 @@ int main(int argc, char **argv) {
     assignment* a = make_assignment(msg_obj->f);
     int sol = solve(msg_obj->start,msg_obj->end,msg_obj->f,a,msg_obj->lookup_table);  
     if(sol){
-
       printf("ANSWER:\n");
       print_assignment_map(a);
-      MPI_Send(a->map, a->size, MPI_INT, 0, num_formulas_recv, MPI_COMM_WORLD);
+      MPI_Send(a->map, a->size, MPI_INT, 0, (int)num_formulas_recv, MPI_COMM_WORLD);
     }
     free(msg);
     free_message(msg_obj);
