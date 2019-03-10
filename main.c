@@ -12,6 +12,8 @@
 #include <string.h>
 #include <mpi.h>
 #include <gmp.h>
+#define TAG_DATA 0
+#define TAG_WORK 1
 
 /*========================================Pair============================================*/
 typedef struct pair {
@@ -589,6 +591,16 @@ int main(int argc, char **argv) {
   else{
     // For WORKERS ONLY
     printf("Worker Id: %d\n",rank);
+
+
+    MPI_Probe(0, ANY_TAG, MPI_COMM_WORLD, &status);
+    int count;
+    MPI_Get_count(&status, MPI_CHAR, &count); 
+    printf("status.MPI_SOURCE = %d, status.MPI_TAG=%d, count = %d\n",
+    status.MPI_SOURCE, status.MPI_TAG, count); 
+    MPI_Recv(dr, count, MPI_CHAR, 0, tag, MPI_COMM_WORLD, &status);
+
+
     // dynam_str* msg = newStr("");
   
     // message* msg_obj = decode_message(msg->str);
