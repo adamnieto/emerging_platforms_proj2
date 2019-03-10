@@ -13,7 +13,7 @@
 #include <mpi.h>
 #include <gmp.h>
 
-
+/*========================================Pair============================================*/
 typedef struct pair {
   unsigned long long start;
   unsigned long long end;
@@ -22,7 +22,7 @@ typedef struct pair {
 void free_pair(pair* p){
   free(p);
 }
-
+/*====================================Dynamic String=======================================*/
 typedef struct dynam_str {
   char* str; // string 
   size_t size; // bytes used not including null terminator 
@@ -73,7 +73,7 @@ void strcatr(dynam_str* dest, const char* source){
   /*printf("dest->capacity: %ld\n",dest->capacity);*/
   /*printf("strlen(source) : %ld\n",source_len);*/
 }
-
+/*====================================Dynamic Array=======================================*/
 typedef struct {
   int* arr; // an array of memory segment pointers
   int size;
@@ -157,7 +157,7 @@ ivec* char_star_to_ivec(char* ivec_str){
   return res;
 }
 
-
+/*====================================Worker Functions=======================================*/
 // Checks if assignment a will satisfy formula f. 
 int interpret(formula* f, assignment* a){
   switch(f->conn){
@@ -294,7 +294,7 @@ int solve(size_t start, size_t end, formula* f, assignment* a){
   /*return NULL;*/
   return 0;
 }
-
+/*====================================Master Func=======================================*/
 // Gives back the start and end numbers (represents start and end of their cases for each worker) 
 pair* distribute(size_t num_combs, size_t num_workers, size_t worker_id){
   // Checks
@@ -321,7 +321,7 @@ pair* distribute(size_t num_combs, size_t num_workers, size_t worker_id){
   res->end = end;
   return res;
 }
-
+/*====================================Lookup Table=======================================*/
 void dedup(ivec* vector, int length){
   int* array = vector->arr;
   int new_size = length;
@@ -371,7 +371,6 @@ void generate_lookup_table_helper(formula* f, ivec* all_variables){
   }
 }
 
-
 ivec* generate_lookup_table(formula* f){
   size_t default_cap = 10;
   ivec* all_variables = new_ivec(default_cap);
@@ -379,7 +378,7 @@ ivec* generate_lookup_table(formula* f){
   dedup(all_variables,all_variables->size);
   return all_variables;
 }
-
+/*====================================Messages=======================================*/
 typedef struct message{
   unsigned long long start;
   unsigned long long end;
@@ -443,6 +442,20 @@ dynam_str* encode_message(dynam_str* formula_str, unsigned long long start_bin,
   return res_message;
 }
 
+void decode_message_master(dynam_str* mesg){
+  message* mesg_obj = decode_message(mesg->str);
+  printf("Decode Message Start: %llu\n", mesg_obj->start);
+  printf("Decode Message End: %llu\n", mesg_obj->end);
+  dynam_str* test = newStr("");
+  encode(mesg_obj->f,test);
+  printf("Decode Message Formula: %s\n", test->str);  
+  free_dynam_str(test);
+  dynam_str* lookup_str = vector_to_string(mesg_obj->lookup_table);
+  printf("Decode Message Lookup Table: %s\n",lookup_str->str);
+  free_dynam_str(lookup_str);
+}
+
+/*===================================================================================*/
 int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
   
@@ -485,24 +498,13 @@ int main(int argc, char **argv) {
 
         
         dynam_str* mesg = encode_message(encode_formula_str,worker_cases->start,worker_cases->end, lookup_table);
-        printf("ENCODE MESSAGE: %s\n", mesg->str);
+        printf("Worker Encoded Message: %s\n", mesg->str);
 
-        message* mesg_obj = decode_message(mesg->str);
-        printf("Decode Message Start: %llu\n", mesg_obj->start);
-        printf("Decode Message End: %llu\n", mesg_obj->end);
-        dynam_str* test = newStr("");
-        encode(mesg_obj->f,test);
-        printf("Decode Message Formula: %s\n", test->str);  
-        free_dynam_str(test);
-        dynam_str* lookup_str = vector_to_string(mesg_obj->lookup_table);
-        printf("Decode Message Lookup Table: %s\n",lookup_str->str);
-        free_dynam_str(lookup_str);
+        // decode_message_master(mesg);
 
-        
-        // free_dynam_str(mesg);
+        free_dynam_str(mesg);
         free_pair(worker_cases);
       }
-      /*printf("\n");*/
       
       // free_assignment(a);
       free_dynam_str(encode_formula_str);
@@ -511,9 +513,14 @@ int main(int argc, char **argv) {
     }
   }
   else{
+    // For WORKERS ONLY
     printf("Worker Id: %d\n",rank);
-    /*assignment* a_sol = solve(worker_cases->start);*/
+    dynam_str* mesg = newStr("");
+  
+    free_dynam_str(mesg);
+
     // MPI_Recv();
+    /*assignment* a_sol = solve(worker_cases->start);*/
     // int sol = solve(worker_cases->start,worker_cases->end,f,a);
     //   if(sol){
     //     printf("ANSWER:\n");
