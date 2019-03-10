@@ -256,33 +256,88 @@ void print_binary(size_t num, int num_bits){
   }
   printf("\n");
 }
+/* Checks the binary pattern by subsituting the look up value in the map           */
+/* You should see the pattern of the binary digits and the combinations it is doing*/
+/* to figure out the solution:                                                     */
+/*  For instance,                                                                  */ 
+/*  000                                                                            */
+/*  001                                                                            */
+/*  010                                                                            */
+/*  011                                                                            */
+/*  111                                                                            */
+void check_pattern(ivec* lookup, assignment* a){
+  printf("LOOKUP SIZE: %d\n",lookup->size);
+  for(long i = lookup->size-1; i > -1; --i){
+    if(i == lookup->size-1 && i == 0) printf("[%d]\n",a->map[lookup->arr[i]]);
+    else if (i == lookup->size-1) printf("[%d,",a->map[lookup->arr[i]]);
+    else if (i == 0) {
+      printf("%d]\n", a->map[lookup->arr[i]]);
+      return;
+    }else{
+      printf("%d,",a->map[lookup->arr[i]]);
+    }
+  }
+}
 
-void get_case(assignment* a, size_t num, int len){
+
+void get_case(assignment* a, unsigned long long num, size_t len, ivec* lookup){
   /*assignment* a_new = a;*/
   // num represent the current case (represented in the nums binary)
-  long temp = 0; // holds the bits 
-  size_t counter = 0; // keeps track of the current index in of map 
+  unsigned long long temp = 0; // holds the bits 
+  // size_t counter = 0; // keeps track of the current index in of map 
   // Iterate over each bit and correct the assignment map if we find a difference
   for(long ind = len; ind >= 0; ind--){
-    temp = num >> ind;
+    temp = num;
+    temp >>= ind;
     long bool_val = (temp & 1);
-    if(a->map[counter] == bool_val) continue; // means bit and array truth value are exactly the same 
+   
+    unsigned long long key = lookup->arr[ind];
+    // printf("lookup->arr[ind]: %d\n",lookup->arr[ind]);
+    // printf("len: %ld\n",len);
+    if(a->map[key] == bool_val) continue; // means bit and array truth value are exactly the same 
     else{ 
       // Means we need to change the value in the assignment array
       if(bool_val){
-        a->map[counter] = 1;
+        a->map[key] = 1;
       }else{
-        a->map[counter] = 0;
+        a->map[key] = 0;
       }
     }
-    counter += 1;
+    // ++counter;
   }
+  check_pattern(lookup,a);
+  print_assignment_map(a);
   /*return a_new;*/
 }
+/*====================================Sorting===============================================*/
+/* Source: https://www.geeksforgeeks.org/insertion-sort/ */
+/* Best sort to use if we have an already that is already sorted*/
+/* Function to sort an array using insertion sort*/
+// void insertion_sort(int arr[], int n) { 
+//    int i, key, j; 
+//    for (i = 1; i < n; i++) { 
+//       key = arr[i]; 
+//       j = i-1; 
+//       /* Move elements of arr[0..i-1], that are 
+//         greater than key, to one position ahead 
+//         of their current position */
+//       while (j >= 0 && arr[j] > key) { 
+//           arr[j+1] = arr[j]; 
+//           j = j-1; 
+//       } 
+//       arr[j+1] = key; 
+//    } 
+// } 
+  
+int solve(unsigned long long start, unsigned long long end, formula* f, assignment* a, ivec* lookup){
+  // Make sure to sort the lookup 
+  // print_vector(lookup);
+  // insertion_sort(lookup->arr,lookup->size);
+  // print_vector(lookup);
+  for(unsigned long long curr_num = start; curr_num < end+1; ++curr_num){
+    printf("Current Number: %llu\n", curr_num);
+    get_case(a,curr_num,lookup->size, lookup);
 
-int solve(size_t start, size_t end, formula* f, assignment* a){
-  for(size_t curr_num = start; curr_num < end+1; ++curr_num){
-    get_case(a,curr_num,a->size);
     int res = interpret(f,a); 
     // Debugging
     /*printf("Trying:\t");*/
@@ -302,9 +357,9 @@ pair* distribute(size_t num_combs, size_t num_workers, size_t worker_id){
   assert(num_workers > 0);
   assert(num_combs > 0);
 
-  long split_len = floor((num_combs+1)/num_workers); // num_combs+1 is to include 0 as a case
-  long start = 0 + (split_len * (worker_id-1));
-  long end = start + (split_len-1);
+  unsigned long long split_len = floor((num_combs+1)/num_workers); // num_combs+1 is to include 0 as a case
+  unsigned long long start = 0 + (split_len * (worker_id-1));
+  unsigned long long end = start + (split_len-1);
 
   // Special Cases  
 
@@ -492,7 +547,7 @@ int main(int argc, char **argv) {
       size_t num_workers = 4;
 
       printf("Number of Combinations: %llu\n",num_combs);
-      for(size_t worker_id = num_workers; worker_id > 0; worker_id--){
+      for(size_t worker_id = 1; worker_id < num_workers+1; ++worker_id){
         pair* worker_cases = distribute(num_combs,num_workers,worker_id);
         printf("For Worker %ld: [%lld, %lld]\n",worker_id,worker_cases->start,worker_cases->end);
 
@@ -500,8 +555,27 @@ int main(int argc, char **argv) {
         dynam_str* mesg = encode_message(encode_formula_str,worker_cases->start,worker_cases->end, lookup_table);
         printf("Worker Encoded Message: %s\n", mesg->str);
 
-        // decode_message_master(mesg);
+        message* msg_obj = decode_message(mesg->str);
+        // printf("Decode Message Start: %llu\n", mesg_obj->start);
+        // printf("Decode Message End: %llu\n", mesg_obj->end);
+        // dynam_str* test = newStr("");
+        // encode(mesg_obj->f,test);
+        // printf("Decode Message Formula: %s\n", test->str);  
+        // free_dynam_str(test);
+        // dynam_str* lookup_str = vector_to_string(mesg_obj->lookup_table);
+        // printf("Decode Message Lookup Table: %s\n",lookup_str->str);
+        // free_dynam_str(lookup_str);
+        assignment* a = make_assignment(f);
+        int sol = solve(msg_obj->start, msg_obj->end, msg_obj->f, a, msg_obj->lookup_table);
+        if(sol){
+          printf("ANSWER:\n");
+          print_assignment_map(a);
+        }else{
+          printf("Case Failed\n");
+        }
 
+
+        free_message(msg_obj);
         free_dynam_str(mesg);
         free_pair(worker_cases);
       }
@@ -515,10 +589,12 @@ int main(int argc, char **argv) {
   else{
     // For WORKERS ONLY
     printf("Worker Id: %d\n",rank);
-    dynam_str* mesg = newStr("");
+    // dynam_str* msg = newStr("");
   
-    free_dynam_str(mesg);
+    // message* msg_obj = decode_message(msg->str);
+    // free_dynam_str(msg);
 
+    // int sol = solve(msg_obj->start,msg_obj->end,msg_obj->f,a,msg->lookup_table);  
     // MPI_Recv();
     /*assignment* a_sol = solve(worker_cases->start);*/
     // int sol = solve(worker_cases->start,worker_cases->end,f,a);
