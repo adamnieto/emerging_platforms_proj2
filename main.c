@@ -533,7 +533,7 @@ int main(int argc, char **argv) {
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-  if (argc < 2) {
+  if(argc < 2) {
     fprintf(stderr, "usage %s: [FORMULA-FILE]\n", argv[0]);
     MPI_Finalize();
     exit(1);
@@ -547,13 +547,14 @@ int main(int argc, char **argv) {
       formula *f = next_formula();
       ++num_formulas;
       if (f == NULL) {
+        for(int worker_id = 1; worker_id < size; ++worker_id){
+          MPI_Send("0", sizeof(char)*1, MPI_CHAR, worker_id, TAG_WORK, MPI_COMM_WORLD);
+        }
         break;
       }
-      /*ivec_res* res_buff = res_new_ivec(10);*/
       MPI_Request *reqs = malloc(sizeof(MPI_Request) * ((size-1)*2));
       MPI_Status *stats = malloc(sizeof(MPI_Status) * ((size-1)*2));
       assignment* result_assignment = make_assignment(f); // inital assignment struct
-      /*res_insert(res_buff,result_assignment);*/
       
       dynam_str* encode_formula_str = newStr("");
       encode(f,encode_formula_str);
@@ -586,51 +587,15 @@ int main(int argc, char **argv) {
       print_assignment_map(result_assignment);
       /*printf("status.MPI_SOURCE = %d, stats.MPI_TAG=%d\n", stats->MPI_SOURCE, stats->MPI_TAG); */
 
-      
-      // int index = 0; 
-      // MPI_Wait(1, reqs, &index, stats);
-      // printf("HELP\n");
-      // // MPI_Waitall((size-1)*2, reqs, stats);
-      // // MPI_Wait(reqs, stats );
-      // int index; 
-      // MPI_Waitany(0, reqs, &index, stats);
-      // print_assignment_map(result_assignment);
       free_assignment(result_assignment);
       free_dynam_str(encode_formula_str);
       free_formula(f);
       free_ivec(lookup_table);
-      /*free_ivec_res(res_buff);*/
       free(reqs);
       free(stats);
+
     }
-    /*int num_formulas_counter = 0;*/
-    /*MPI_Request request[4];*/
-    /*MPI_Status status1[4];*/
-    /*while(num_formulas_counter < num_formulas){*/
-      /*printf("STOP\n");*/
-      /*for(int worker_id = 1; worker_id < size; ++worker_id){*/
-         /*printf("num_formulas_counter: %d\n",num_formulas_counter);*/
-         /*MPI_Irecv(res_buff->arr[num_formulas_counter+worker_id-1]->map, res_buff->arr[num_formulas_counter+worker_id-1]->size, MPI_INT, worker_id, num_formulas_counter+1,MPI_COMM_WORLD, &reqs[(worker_id-1)+(size-1)]);*/
-        /*[>MPI_Recv(res_buff->arr[num_formulas_counter]->map, res_buff->arr[num_formulas_counter]->size, MPI_INT, worker_id, num_formulas_counter+1,MPI_COMM_WORLD, MPI_STATUS_IGNORE);<]*/
-        /*// Means that the solution we got back was not found by that worker*/
-        /*if(res_buff->arr[num_formulas_counter+worker_id-1]->map[0] == -1){*/
-          /*continue;*/
-        /*}else{*/
-          /*print_assignment_map(res_buff->arr[num_formulas_counter+worker_id-1]);*/
-          /*++num_formulas_counter;*/
-          /*break;*/
-        /*}*/
-      /*}*/
-      /*MPI_Waitall((size-1), reqs, stats);*/
-      // MPI_Wait(reqs, stats );
-      /*int index; */
-      
-      /*MPI_Waitany(1, request, &index, status1);*/
-      /*printf("index:%d\n",index);*/
-    /*}*/
-    // MPI_Broadcast();
-  }
-  else{
+  }else{
     // For WORKERS ONLY
     while(1){
       /*printf("Worker Id: %d\n",rank);*/
@@ -643,6 +608,10 @@ int main(int argc, char **argv) {
       // status->MPI_SOURCE, status->MPI_TAG, msg_size); 
       // printf("Message Size: %d\n",msg_size);
 
+      // We know it is the command to stop working and terminate
+      if(msg_size == sizeof(char)*1){
+        break;
+      }
       // Recieve Message
       char* msg = (char*)malloc(sizeof(char)*msg_size);
 
@@ -657,15 +626,8 @@ int main(int argc, char **argv) {
         /*printf("ANSWER: (Worker ID %d)\n", rank);*/
         /*print_assignment_map(a);*/
         /*printf("\n");*/
-        MPI_Send(a->map, a->size, MPI_INT, 0, (int)num_formulas_recv, MPI_COMM_WORLD);
+        MPI_Send(a->map, a->size, MPI_INT, 0,(int)num_formulas_recv, MPI_COMM_WORLD);
       }
-      /*else{*/
-        // Send back that they did not get a solution
-        /*for(int i = 0; i < a->size; ++i){*/
-          /*a->map[i] = -1;*/
-        /*}*/
-        /*MPI_Send(a->map, a->size, MPI_INT, 0, (int)(num_formulas_recv),MPI_COMM_WORLD);*/
-      /*}*/
       free(msg);
       free_message(msg_obj);
       free_assignment(a);
@@ -673,6 +635,6 @@ int main(int argc, char **argv) {
   }
   free_lib();
   MPI_Finalize();
+  printf("exit");
   return 0;
-
 }
