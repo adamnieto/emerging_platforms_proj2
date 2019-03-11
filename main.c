@@ -579,11 +579,12 @@ int main(int argc, char **argv) {
         free_pair(worker_cases);
       }
       for(int worker_id = 1; worker_id < size; ++worker_id){
-        MPI_Irecv(result_assignment->map, result_assignment->size, MPI_INT, worker_id, num_formulas, MPI_COMM_WORLD, &reqs[(worker_id-1)+(size-1)]);
+        MPI_Irecv(result_assignment->map, result_assignment->size, MPI_INT, worker_id, num_formulas, MPI_COMM_WORLD, &reqs[0]);
         break;
       }
       MPI_Wait(reqs, stats);
       print_assignment_map(result_assignment);
+      /*printf("status.MPI_SOURCE = %d, stats.MPI_TAG=%d\n", stats->MPI_SOURCE, stats->MPI_TAG); */
 
       
       // int index = 0; 
@@ -653,9 +654,9 @@ int main(int argc, char **argv) {
       assignment* a = make_assignment(msg_obj->f);
       int sol = solve(msg_obj->start,msg_obj->end,msg_obj->f,a,msg_obj->lookup_table);  
       if(sol){
-        printf("ANSWER: (Worker ID %d)\n", rank);
-        print_assignment_map(a);
-        printf("\n");
+        /*printf("ANSWER: (Worker ID %d)\n", rank);*/
+        /*print_assignment_map(a);*/
+        /*printf("\n");*/
         MPI_Send(a->map, a->size, MPI_INT, 0, (int)num_formulas_recv, MPI_COMM_WORLD);
       }
       /*else{*/
