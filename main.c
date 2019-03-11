@@ -79,39 +79,39 @@ void strcatr(dynam_str* dest, const char* source){
   /*printf("strlen(source) : %ld\n",source_len);*/
 }
 /*====================================Dynamic Array=======================================*/
-typedef struct ivec_res{
-  assignment** arr; // an array of memory segment pointers
-  int size;
-  int cap;
-} ivec_res;
+/*typedef struct ivec_res{*/
+  /*assignment** arr; // an array of memory segment pointers*/
+  /*int size;*/
+  /*int cap;*/
+/*} ivec_res;*/
 
-ivec_res* res_new_ivec(int cap) {
-  ivec_res* iv = malloc(sizeof(ivec_res));
-  iv->arr = malloc(sizeof(assignment*) * cap);
-  iv->size = 0;
-  iv->cap = cap;
-  return iv;
-}
+/*ivec_res* res_new_ivec(int cap) {*/
+  /*ivec_res* iv = malloc(sizeof(ivec_res));*/
+  /*iv->arr = malloc(sizeof(assignment*) * cap);*/
+  /*iv->size = 0;*/
+  /*iv->cap = cap;*/
+  /*return iv;*/
+/*}*/
 
-void free_ivec_res(ivec_res *iv) {
-  for(int i = 0; i < iv->size; ++i){
-    free_assignment(iv->arr[i]);
-  }
-  free(iv->arr);
-  free(iv);
-}
+/*void free_ivec_res(ivec_res *iv) {*/
+  /*for(int i = 0; i < iv->size; ++i){*/
+    /*free_assignment(iv->arr[i]);*/
+  /*}*/
+  /*free(iv->arr);*/
+  /*free(iv);*/
+/*}*/
 
-void res_insert(ivec_res *iv, assignment* val) {
-  if (iv->size == iv->cap) {
-    assignment** narr = (assignment**)malloc(sizeof(assignment*) * (iv->cap * 2));
-    iv->cap *= 2;
-    memcpy(narr, iv->arr, (sizeof(assignment*) * iv->size));
-    free(iv->arr);
-    iv->arr = narr;
-  }
-  iv->arr[iv->size] = val;
-  iv->size++;
-}
+/*void res_insert(ivec_res *iv, assignment* val) {*/
+  /*if (iv->size == iv->cap) {*/
+    /*assignment** narr = (assignment**)malloc(sizeof(assignment*) * (iv->cap * 2));*/
+    /*iv->cap *= 2;*/
+    /*memcpy(narr, iv->arr, (sizeof(assignment*) * iv->size));*/
+    /*free(iv->arr);*/
+    /*iv->arr = narr;*/
+  /*}*/
+  /*iv->arr[iv->size] = val;*/
+  /*iv->size++;*/
+/*}*/
 
 typedef struct ivec{
   int* arr; // an array of memory segment pointers
@@ -230,7 +230,6 @@ int count_num_digits(int number){
   int count = 0;
   while(number != 0){
      number = number/10;
-    //  number /= 10;
      ++count;
   }
   return count;
@@ -332,7 +331,6 @@ void get_case(assignment* a, unsigned long long num, size_t len, ivec* lookup){
   /*assignment* a_new = a;*/
   // num represent the current case (represented in the nums binary)
   unsigned long long temp = 0; // holds the bits 
-  // size_t counter = 0; // keeps track of the current index in of map 
   // Iterate over each bit and correct the assignment map if we find a difference
   for(long ind = len; ind >= 0; ind--){
     temp = num;
@@ -355,13 +353,9 @@ void get_case(assignment* a, unsigned long long num, size_t len, ivec* lookup){
   }
   // check_pattern(lookup,a);
   // print_assignment_map(a);
-  /*return a_new;*/
 }
 int solve(unsigned long long start, unsigned long long end, formula* f, assignment* a, ivec* lookup){
   // Make sure to sort the lookup 
-  // print_vector(lookup);
-  // insertion_sort(lookup->arr,lookup->size);
-  // print_vector(lookup);
   for(unsigned long long curr_num = start; curr_num < end+1; ++curr_num){
     // printf("Current Number: %llu\n", curr_num);
     get_case(a,curr_num,lookup->size, lookup);
@@ -372,9 +366,7 @@ int solve(unsigned long long start, unsigned long long end, formula* f, assignme
     /*print_assignment_map(a);*/
     /*printf("Res from Interpret: %d\n", res);*/
     if(res) return res;
-    /*else a_curr = a_new;*/
   }
-  /*return NULL;*/
   return 0;
 }
 /*====================================Master Func=======================================*/
@@ -389,7 +381,7 @@ pair* distribute(size_t num_combs, size_t num_workers, size_t worker_id){
   unsigned long long start = 0 + (split_len * (worker_id-1));
   unsigned long long end = start + (split_len-1);
 
-  // Special Cases  
+  // Special Cases
 
   // Will give the last worker more cases if split wasn't even
   if(num_combs - end > 0 && worker_id == num_workers){

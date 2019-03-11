@@ -13,7 +13,7 @@ run: main
 	mpirun -n 4 ./main simple.txt
 
 checkmem: all 
-		valgrind --leak-check=full --show-leak-kinds=all -v ./main simple.txt
+		valgrind --leak-check=full --show-leak-kinds=all -v mpirun -n 4 ./main simple.txt
 
 .PHONY: clean
 
