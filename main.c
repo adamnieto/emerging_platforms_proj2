@@ -285,7 +285,7 @@ void encode(formula *f, dynam_str* res) {
 }
 
 void print_assignment_map(assignment* a){
-  printf("\t Assignment Map: ");
+  printf("Satisfiable with assignment: ");
   for(size_t i = 0; i < a->size; ++i){
     if(i < a->size-1){
       printf("%d ",a->map[i]);
@@ -558,7 +558,7 @@ int main(int argc, char **argv) {
       
       dynam_str* encode_formula_str = newStr("");
       encode(f,encode_formula_str);
-      printf("Formula: %s\n",encode_formula_str->str); 
+      printf("%s\n",encode_formula_str->str); 
       ivec* lookup_table = generate_lookup_table(f);
       // print_vector(lookup_table);
       int num_variables = lookup_table->size;
