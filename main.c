@@ -56,27 +56,12 @@ void strcatr(dynam_str* dest, const char* source){
     new_str = (char*)malloc((dest->size + (source_len+1)));
     dest->capacity = (dest->size + source_len);
   }
-  /*}else{*/
-    /*[>printf("IN ELSE\n");<]*/
-    /*new_str = dest->str;*/
-    /*strcat(new_str,source);*/
-    /*return; */
-  /*}*/
-  /*printf("Before\n");*/
-  /*printf("dest->size: %ld\n",dest->size);*/
-  /*printf("dest->capacity: %ld\n",dest->capacity);*/
-  /*printf("strlen(source) : %ld\n",source_len);*/
-  
   strcpy(new_str,dest->str);
   strcat(new_str,source);
   free(dest->str);
   dest->str = NULL; // out of sanity
   dest->str = new_str;
   dest->size += source_len;
-  /*printf("After\n");*/
-  /*printf("dest->size: %ld\n",dest->size);*/
-  /*printf("dest->capacity: %ld\n",dest->capacity);*/
-  /*printf("strlen(source) : %ld\n",source_len);*/
 }
 /*====================================Dynamic Array=======================================*/
 /*typedef struct ivec_res{*/
@@ -371,26 +356,33 @@ int solve(unsigned long long start, unsigned long long end, formula* f, assignme
 }
 /*====================================Master Func=======================================*/
 // Gives back the start and end numbers (represents start and end of their cases for each worker) 
-pair* distribute(size_t num_combs, size_t num_workers, size_t worker_id){
+pair* distribute(unsigned long long num_combs, unsigned long long num_workers, unsigned long long worker_id){
   // Checks
   assert(worker_id > 0); // workers ids need to start at 1
   assert(num_workers > 0);
   assert(num_combs > 0);
 
-  unsigned long long split_len = floor((num_combs+1)/num_workers); // num_combs+1 is to include 0 as a case
-  unsigned long long start = 0 + (split_len * (worker_id-1));
-  unsigned long long end = start + (split_len-1);
-
-  // Special Cases
-
-  // Will give the last worker more cases if split wasn't even
-  if(num_combs - end > 0 && worker_id == num_workers){
-    // if there are more cases and this is the last worker
-    end = num_combs;
+  unsigned long long split_len = (num_combs/num_workers);
+  /*printf("WORKER ID: %llu\n", worker_id);*/
+  printf("Number of Combinations: %llu\n", num_combs);
+  unsigned long long start = 0;
+  unsigned long long end = split_len;
+  /*printf("Split Length: %llu\n", split_len);*/
+  for(unsigned long long index = 1; index < num_combs; ++index){
+   /*printf("start: %llu \t end: %llu \t index: %llu \n", start, end, index);*/
+   if(start == 0 && end == 0 && index == 1){
+     start = end;
+     end = num_combs-1;
+     break;
+   }
+   if(index ==  worker_id){
+     /*printf("num_workers-1: %llu\n", num_workers-1);*/
+     if(end < num_combs-1 && num_workers-1 == worker_id) end = num_combs-1;
+     break;
+   }
+   start = end+1;
+   end += split_len;
   }
-  if(end < 0) end = 0; // keep number positive 
-  if(end > num_combs) end = num_combs; // keep in domain
-
   pair* res = malloc(sizeof(pair));
   res->start = start;
   res->end = end;
@@ -563,22 +555,21 @@ int main(int argc, char **argv) {
       // Sending formulas to workers
       for(size_t worker_id = 1; worker_id < size; ++worker_id){
         pair* worker_cases = distribute(num_combs,size,worker_id);
-        // printf("For Worker %ld: [%lld, %lld]\n",worker_id,worker_cases->start,worker_cases->end);
-        dynam_str* mesg = encode_message(encode_formula_str,worker_cases->start,worker_cases->end, lookup_table);
+         printf("For Worker %ld: [%lld, %lld]\n",worker_id,worker_cases->start,worker_cases->end);
+        /*dynam_str* mesg = encode_message(encode_formula_str,worker_cases->start,worker_cases->end, lookup_table);*/
         /*printf("Worker Encoded Message: %s\n", mesg->str);*/
-        /*MPI_Send(mesg->str, strlen(mesg->str)+1, MPI_CHAR, 1, TAG_WORK, MPI_COMM_WORLD);*/
-        MPI_Issend(mesg->str, strlen(mesg->str)+1, MPI_CHAR, worker_id, TAG_WORK, MPI_COMM_WORLD, &reqs[worker_id-1]);
-        free_dynam_str(mesg);
-        free_pair(worker_cases);
+        /*MPI_Issend(mesg->str, strlen(mesg->str)+1, MPI_CHAR, worker_id, TAG_WORK, MPI_COMM_WORLD, &reqs[worker_id-1]);*/
+        /*free_dynam_str(mesg);*/
+        /*free_pair(worker_cases);*/
+      /*}*/
+      /*for(int worker_id = 1; worker_id < size; ++worker_id){*/
+        /*MPI_Irecv(result_assignment->map, result_assignment->size, MPI_INT, worker_id, num_formulas, MPI_COMM_WORLD, &reqs[0]);*/
+        /*break;*/
       }
-      for(int worker_id = 1; worker_id < size; ++worker_id){
-        MPI_Irecv(result_assignment->map, result_assignment->size, MPI_INT, worker_id, num_formulas, MPI_COMM_WORLD, &reqs[0]);
-        break;
-      }
-      MPI_Wait(reqs, stats);
-      print_assignment_map(result_assignment);
+      /*MPI_Wait(reqs, stats);*/
+      /*print_assignment_map(result_assignment);*/
       /*printf("status.MPI_SOURCE = %d, stats.MPI_TAG=%d\n", stats->MPI_SOURCE, stats->MPI_TAG); */
-
+      
       free_assignment(result_assignment);
       free_dynam_str(encode_formula_str);
       free_formula(f);
@@ -627,6 +618,5 @@ int main(int argc, char **argv) {
   }
   free_lib();
   MPI_Finalize();
-  printf("exit");
   return 0;
 }
