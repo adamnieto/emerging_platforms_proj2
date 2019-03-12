@@ -14,7 +14,8 @@
 #include <gmp.h>
 #define TAG_DATA 0
 #define TAG_WORK 1
-
+#define TAG_SUCCESS 2
+#define TAG_FAIL 3
 // For workers
 unsigned long long num_formulas_recv = 0;
 
@@ -64,39 +65,39 @@ void strcatr(dynam_str* dest, const char* source){
   dest->size += source_len;
 }
 /*====================================Dynamic Array=======================================*/
-/*typedef struct ivec_res{*/
-  /*assignment** arr; // an array of memory segment pointers*/
-  /*int size;*/
-  /*int cap;*/
-/*} ivec_res;*/
+typedef struct ivec_res{
+  assignment** arr; // an array of memory segment pointers
+  int size;
+  int cap;
+} ivec_res;
 
-/*ivec_res* res_new_ivec(int cap) {*/
-  /*ivec_res* iv = malloc(sizeof(ivec_res));*/
-  /*iv->arr = malloc(sizeof(assignment*) * cap);*/
-  /*iv->size = 0;*/
-  /*iv->cap = cap;*/
-  /*return iv;*/
-/*}*/
+ivec_res* res_new_ivec(int cap) {
+  ivec_res* iv = malloc(sizeof(ivec_res));
+  iv->arr = malloc(sizeof(assignment*) * cap);
+  iv->size = 0;
+  iv->cap = cap;
+  return iv;
+}
 
-/*void free_ivec_res(ivec_res *iv) {*/
-  /*for(int i = 0; i < iv->size; ++i){*/
-    /*free_assignment(iv->arr[i]);*/
-  /*}*/
-  /*free(iv->arr);*/
-  /*free(iv);*/
-/*}*/
+void free_ivec_res(ivec_res *iv) {
+  for(int i = 0; i < iv->size; ++i){
+    free_assignment(iv->arr[i]);
+  }
+  free(iv->arr);
+  free(iv);
+}
 
-/*void res_insert(ivec_res *iv, assignment* val) {*/
-  /*if (iv->size == iv->cap) {*/
-    /*assignment** narr = (assignment**)malloc(sizeof(assignment*) * (iv->cap * 2));*/
-    /*iv->cap *= 2;*/
-    /*memcpy(narr, iv->arr, (sizeof(assignment*) * iv->size));*/
-    /*free(iv->arr);*/
-    /*iv->arr = narr;*/
-  /*}*/
-  /*iv->arr[iv->size] = val;*/
-  /*iv->size++;*/
-/*}*/
+void res_insert(ivec_res *iv, assignment* val) {
+  if (iv->size == iv->cap) {
+    assignment** narr = (assignment**)malloc(sizeof(assignment*) * (iv->cap * 2));
+    iv->cap *= 2;
+    memcpy(narr, iv->arr, (sizeof(assignment*) * iv->size));
+    free(iv->arr);
+    iv->arr = narr;
+  }
+  iv->arr[iv->size] = val;
+  iv->size++;
+}
 
 typedef struct ivec{
   int* arr; // an array of memory segment pointers
@@ -364,7 +365,7 @@ pair* distribute(unsigned long long num_combs, unsigned long long num_workers, u
 
   unsigned long long split_len = (num_combs/num_workers);
   /*printf("WORKER ID: %llu\n", worker_id);*/
-  printf("Number of Combinations: %llu\n", num_combs);
+  /*printf("Number of Combinations: %llu\n", num_combs);*/
   unsigned long long start = 0;
   unsigned long long end = split_len;
   /*printf("Split Length: %llu\n", split_len);*/
@@ -536,9 +537,10 @@ int main(int argc, char **argv) {
         }
         break;
       }
-      MPI_Request *reqs = malloc(sizeof(MPI_Request) * ((size-1)*2));
-      MPI_Status *stats = malloc(sizeof(MPI_Status) * ((size-1)*2));
-      assignment* result_assignment = make_assignment(f); // inital assignment struct
+      MPI_Request *reqs = malloc(sizeof(MPI_Request) * ((size-1)));
+      MPI_Status *stats = malloc(sizeof(MPI_Status) * ((size-1)));
+      /*assignment* result_assignment = make_assignment(f); // inital assignment struct*/
+      /*ivec_res* res_buff = res_new_ivec(10);*/
       
       dynam_str* encode_formula_str = newStr("");
       encode(f,encode_formula_str);
@@ -554,26 +556,49 @@ int main(int argc, char **argv) {
       // printf("Number of Combinations: %llu\n",num_combs);
       // Sending formulas to workers
       for(size_t worker_id = 1; worker_id < size; ++worker_id){
+        /*assignment* new_assignment = make_assignment(f);*/
+        /*res_insert(res_buff, new_assignment);*/
         pair* worker_cases = distribute(num_combs,size,worker_id);
-         printf("For Worker %ld: [%lld, %lld]\n",worker_id,worker_cases->start,worker_cases->end);
-        /*dynam_str* mesg = encode_message(encode_formula_str,worker_cases->start,worker_cases->end, lookup_table);*/
+        /*printf("For Worker %ld: [%lld, %lld]\n",worker_id,worker_cases->start,worker_cases->end);*/
+        dynam_str* mesg = encode_message(encode_formula_str,worker_cases->start,worker_cases->end, lookup_table);
         /*printf("Worker Encoded Message: %s\n", mesg->str);*/
-        /*MPI_Issend(mesg->str, strlen(mesg->str)+1, MPI_CHAR, worker_id, TAG_WORK, MPI_COMM_WORLD, &reqs[worker_id-1]);*/
-        /*free_dynam_str(mesg);*/
-        /*free_pair(worker_cases);*/
-      /*}*/
-      /*for(int worker_id = 1; worker_id < size; ++worker_id){*/
-        /*MPI_Irecv(result_assignment->map, result_assignment->size, MPI_INT, worker_id, num_formulas, MPI_COMM_WORLD, &reqs[0]);*/
-        /*break;*/
+        MPI_Issend(mesg->str, strlen(mesg->str)+1, MPI_CHAR, worker_id, TAG_WORK, MPI_COMM_WORLD, &reqs[worker_id-1]);
+        free_dynam_str(mesg);
+        free_pair(worker_cases);
       }
-      /*MPI_Wait(reqs, stats);*/
-      /*print_assignment_map(result_assignment);*/
+      unsigned long long sum = 0; 
+      /*unsigned long long temp = 0;*/
+      /*ivec* test = new_ivec(size-1);*/
+      int* bufs = malloc(sizeof(int) * (size-1));
+      for(int worker_id = 1; worker_id < size; ++worker_id){
+        /*MPI_Irecv(res_buff->arr[worker_id-1]->map, res_buff->arr[worker_id-1]->size, MPI_INT, worker_id, num_formulas, MPI_COMM_WORLD, &reqs[worker_id-1]);*/
+        MPI_Irecv(&bufs[worker_id-1], 1, MPI_INT, worker_id, num_formulas, MPI_COMM_WORLD, &reqs[worker_id-1]);
+      }
       /*printf("status.MPI_SOURCE = %d, stats.MPI_TAG=%d\n", stats->MPI_SOURCE, stats->MPI_TAG); */
+      /*MPI_Waitall((size-1), reqs, stats);*/
       
-      free_assignment(result_assignment);
+      for(int worker_id = 1; worker_id < size; ++worker_id){
+        /*printf("Answer:%d\n", bufs[worker_id-1]);*/
+        MPI_Wait(reqs+(worker_id-1), stats);
+        sum += bufs[worker_id-1];
+        /*printf("Sum: %llu\n",sum);*/
+        /*printf("%d\n", bufs[worker_id-1]);*/
+        /*sum += res_buff[worker_id-1];*/
+        if(sum > 0) {
+          printf("%d\n",bufs[worker_id-1]);
+          break;
+        }
+        /*if(res_buff->arr[worker_id-1]->map[0] != -1){*/
+          /*print_assignment_map(res_buff->arr[worker_id-1]);*/
+      /*printf("status.MPI_SOURCE = %d, stats.MPI_TAG=%d\n", stats->MPI_SOURCE, stats->MPI_TAG); */
+        /*}*/
+      }
+      // Means unsatisfiable
+      if(sum == 0) printf("%d\n",0);
       free_dynam_str(encode_formula_str);
       free_formula(f);
       free_ivec(lookup_table);
+      /*free_ivec(res_buff);*/
       free(reqs);
       free(stats);
 
@@ -597,20 +622,32 @@ int main(int argc, char **argv) {
       }
       // Recieve Message
       char* msg = (char*)malloc(sizeof(char)*msg_size);
-
       MPI_Recv(msg, msg_size, MPI_CHAR, 0, TAG_WORK, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     
       /*printf("MESSAGE: %s\n", msg);*/
       message* msg_obj = decode_message(msg);
       ++num_formulas_recv;
       assignment* a = make_assignment(msg_obj->f);
-      int sol = solve(msg_obj->start,msg_obj->end,msg_obj->f,a,msg_obj->lookup_table);  
-      if(sol){
-        /*printf("ANSWER: (Worker ID %d)\n", rank);*/
-        /*print_assignment_map(a);*/
-        /*printf("\n");*/
-        MPI_Send(a->map, a->size, MPI_INT, 0,(int)num_formulas_recv, MPI_COMM_WORLD);
-      }
+      int sol = solve(msg_obj->start,msg_obj->end,msg_obj->f,a,msg_obj->lookup_table); 
+      MPI_Send(&sol, 1, MPI_INT, 0, (int)num_formulas_recv, MPI_COMM_WORLD); 
+      /*if(!sol){*/
+        /*for(int i = 0; i < a->size; ++i){*/
+          /*a->map[i] = -1;*/
+        /*}*/
+      /*}*/
+      /*printf("ANSWER: (Worker ID %d)\n", rank);*/
+      /*print_assignment_map(a);*/
+      /*printf("\n");*/
+      /*MPI_Send(a->map, a->size, MPI_INT, 0,(int)num_formulas_recv, MPI_COMM_WORLD);*/
+      /*if(sol){*/
+        /*MPI_Send(a->map, a->size, MPI_INT, 0,(int)num_formulas_recv, MPI_COMM_WORLD);*/
+      /*}else{*/
+        /*for(int i = 0; i < a->size; ++i){*/
+          /*a->map[i] = -1;*/
+        /*}*/
+        /*// Send that no solution was found*/
+        /*MPI_Send(a->map, a->size, MPI_INT, 0, (int)num_formulas_recv, MPI_COMM_WORLD);*/
+      /*}*/
       free(msg);
       free_message(msg_obj);
       free_assignment(a);
