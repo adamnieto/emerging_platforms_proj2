@@ -1,5 +1,5 @@
 CFLAGS=-g -Wall
-
+THREADS=200
 all: main 
 
 sat: sat.h sat.c
@@ -10,10 +10,10 @@ main: sat
 	mpicc $(CFLAGS) --std=c11 -o main main.c sat.o libutil.a
 
 run: main
-	mpirun -n 16 ./main simple.txt
+	mpirun  -n  $(THREADS) ./main simple.txt
 
 checkmem: all 
-		valgrind --leak-check=full --show-leak-kinds=all -v mpirun -n 4 ./main simple.txt
+		valgrind --leak-check=full --show-leak-kinds=all -v mpirun -n $(THREADS) ./main simple.txt
 
 .PHONY: clean
 

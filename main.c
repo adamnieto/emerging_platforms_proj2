@@ -65,39 +65,39 @@ void strcatr(dynam_str* dest, const char* source){
   dest->size += source_len;
 }
 /*====================================Dynamic Array=======================================*/
-typedef struct ivec_res{
-  assignment** arr; // an array of memory segment pointers
-  int size;
-  int cap;
-} ivec_res;
+/*typedef struct ivec_res{*/
+  /*assignment** arr; // an array of memory segment pointers*/
+  /*int size;*/
+  /*int cap;*/
+/*} ivec_res;*/
 
-ivec_res* res_new_ivec(int cap) {
-  ivec_res* iv = malloc(sizeof(ivec_res));
-  iv->arr = malloc(sizeof(assignment*) * cap);
-  iv->size = 0;
-  iv->cap = cap;
-  return iv;
-}
+/*ivec_res* res_new_ivec(int cap) {*/
+  /*ivec_res* iv = malloc(sizeof(ivec_res));*/
+  /*iv->arr = malloc(sizeof(assignment*) * cap);*/
+  /*iv->size = 0;*/
+  /*iv->cap = cap;*/
+  /*return iv;*/
+/*}*/
 
-void free_ivec_res(ivec_res *iv) {
-  for(int i = 0; i < iv->size; ++i){
-    free_assignment(iv->arr[i]);
-  }
-  free(iv->arr);
-  free(iv);
-}
+/*void free_ivec_res(ivec_res *iv) {*/
+  /*for(int i = 0; i < iv->size; ++i){*/
+    /*free_assignment(iv->arr[i]);*/
+  /*}*/
+  /*free(iv->arr);*/
+  /*free(iv);*/
+/*}*/
 
-void res_insert(ivec_res *iv, assignment* val) {
-  if (iv->size == iv->cap) {
-    assignment** narr = (assignment**)malloc(sizeof(assignment*) * (iv->cap * 2));
-    iv->cap *= 2;
-    memcpy(narr, iv->arr, (sizeof(assignment*) * iv->size));
-    free(iv->arr);
-    iv->arr = narr;
-  }
-  iv->arr[iv->size] = val;
-  iv->size++;
-}
+/*void res_insert(ivec_res *iv, assignment* val) {*/
+  /*if (iv->size == iv->cap) {*/
+    /*assignment** narr = (assignment**)malloc(sizeof(assignment*) * (iv->cap * 2));*/
+    /*iv->cap *= 2;*/
+    /*memcpy(narr, iv->arr, (sizeof(assignment*) * iv->size));*/
+    /*free(iv->arr);*/
+    /*iv->arr = narr;*/
+  /*}*/
+  /*iv->arr[iv->size] = val;*/
+  /*iv->size++;*/
+/*}*/
 
 typedef struct ivec{
   int* arr; // an array of memory segment pointers
@@ -278,6 +278,7 @@ void print_assignment_map(assignment* a){
       printf("%d\n",a->map[i]);
     }
   }
+  printf("\n");
 }
 // Prints the binary representation of a number and to length num_bits
 void print_binary(size_t num, int num_bits){
@@ -537,8 +538,8 @@ int main(int argc, char **argv) {
         }
         break;
       }
-      MPI_Request *reqs = malloc(sizeof(MPI_Request) * ((size-1)));
-      MPI_Status *stats = malloc(sizeof(MPI_Status) * ((size-1)));
+      MPI_Request *reqs = malloc(sizeof(MPI_Request) * ((size-1)*2));
+      MPI_Status *stats = malloc(sizeof(MPI_Status) * ((size-1)*2));
       /*assignment* result_assignment = make_assignment(f); // inital assignment struct*/
       /*ivec_res* res_buff = res_new_ivec(10);*/
       
@@ -575,11 +576,18 @@ int main(int argc, char **argv) {
         MPI_Irecv(&bufs[worker_id-1], 1, MPI_INT, worker_id, num_formulas, MPI_COMM_WORLD, &reqs[worker_id-1]);
       }
       /*printf("status.MPI_SOURCE = %d, stats.MPI_TAG=%d\n", stats->MPI_SOURCE, stats->MPI_TAG); */
-      /*MPI_Waitall((size-1), reqs, stats);*/
-      
+      MPI_Waitall((size-1), reqs, stats); 
+      /*int cancel_calls = 0;*/
       for(int worker_id = 1; worker_id < size; ++worker_id){
+        /*if(cancel_calls){*/
+          /*if(&reqs[worker_id-1] != NULL){*/
+            /*MPI_Cancel(reqs+(worker_id-1));*/
+            /*printf("helli\n");*/
+          /*}*/
+          /*continue;*/
+        /*}*/
         /*printf("Answer:%d\n", bufs[worker_id-1]);*/
-        MPI_Wait(reqs+(worker_id-1), stats);
+        /*MPI_Wait(reqs+(worker_id-1),stats);*/
         sum += bufs[worker_id-1];
         /*printf("Sum: %llu\n",sum);*/
         /*printf("%d\n", bufs[worker_id-1]);*/
@@ -587,6 +595,7 @@ int main(int argc, char **argv) {
         if(sum > 0) {
           printf("%d\n",bufs[worker_id-1]);
           break;
+          /*cancel_calls = 1;*/
         }
         /*if(res_buff->arr[worker_id-1]->map[0] != -1){*/
           /*print_assignment_map(res_buff->arr[worker_id-1]);*/
@@ -598,10 +607,9 @@ int main(int argc, char **argv) {
       free_dynam_str(encode_formula_str);
       free_formula(f);
       free_ivec(lookup_table);
-      /*free_ivec(res_buff);*/
+      free(bufs);
       free(reqs);
       free(stats);
-
     }
   }else{
     // For WORKERS ONLY
@@ -618,6 +626,7 @@ int main(int argc, char **argv) {
 
       // We know it is the command to stop working and terminate
       if(msg_size == sizeof(char)*1){
+        /*printf("Worker ID: %d\n", rank);*/
         break;
       }
       // Recieve Message
@@ -637,7 +646,6 @@ int main(int argc, char **argv) {
       /*}*/
       /*printf("ANSWER: (Worker ID %d)\n", rank);*/
       /*print_assignment_map(a);*/
-      /*printf("\n");*/
       /*MPI_Send(a->map, a->size, MPI_INT, 0,(int)num_formulas_recv, MPI_COMM_WORLD);*/
       /*if(sol){*/
         /*MPI_Send(a->map, a->size, MPI_INT, 0,(int)num_formulas_recv, MPI_COMM_WORLD);*/
