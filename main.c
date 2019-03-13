@@ -16,9 +16,9 @@
 #define TAG_WORK 1
 #define TAG_SUCCESS 2
 #define TAG_FAIL 3
+#define TAG_COMMAND 4
 // For workers
 unsigned long long num_formulas_recv = 0;
-
 /*========================================Pair============================================*/
 typedef struct pair {
   unsigned long long start;
@@ -315,7 +315,6 @@ void check_pattern(ivec* lookup, assignment* a){
 
 
 void get_case(assignment* a, unsigned long long num, size_t len, ivec* lookup){
-  /*assignment* a_new = a;*/
   // num represent the current case (represented in the nums binary)
   unsigned long long temp = 0; // holds the bits 
   // Iterate over each bit and correct the assignment map if we find a difference
@@ -341,9 +340,18 @@ void get_case(assignment* a, unsigned long long num, size_t len, ivec* lookup){
   // check_pattern(lookup,a);
   // print_assignment_map(a);
 }
-int solve(unsigned long long start, unsigned long long end, formula* f, assignment* a, ivec* lookup){
+int flag = 0;
+int command_size;
+int solve(unsigned long long start, unsigned long long end, formula* f, assignment* a, ivec* lookup, MPI_Status* status){
   // Make sure to sort the lookup 
   for(unsigned long long curr_num = start; curr_num < end+1; ++curr_num){
+    MPI_Iprobe(0, TAG_COMMAND, MPI_COMM_WORLD, &flag, status);
+    if(flag) { 
+      printf("hello1\n");
+      MPI_Get_count(status, MPI_CHAR, &command_size); 
+      if(command_size == 2) return 0;
+    }
+
     // printf("Current Number: %llu\n", curr_num);
     get_case(a,curr_num,lookup->size, lookup);
 
@@ -567,43 +575,46 @@ int main(int argc, char **argv) {
         free_dynam_str(mesg);
         free_pair(worker_cases);
       }
-      unsigned long long sum = 0; 
+      int success = 0; 
       /*unsigned long long temp = 0;*/
       /*ivec* test = new_ivec(size-1);*/
       int* bufs = malloc(sizeof(int) * (size-1));
       for(int worker_id = 1; worker_id < size; ++worker_id){
-        /*MPI_Irecv(res_buff->arr[worker_id-1]->map, res_buff->arr[worker_id-1]->size, MPI_INT, worker_id, num_formulas, MPI_COMM_WORLD, &reqs[worker_id-1]);*/
-        MPI_Irecv(&bufs[worker_id-1], 1, MPI_INT, worker_id, num_formulas, MPI_COMM_WORLD, &reqs[worker_id-1]);
+        if(success){
+          /*MPI_Cancel(&(reqs[worker_id-1]));*/
+          MPI_Send("-1", sizeof(char)*2, MPI_CHAR, worker_id, TAG_COMMAND, MPI_COMM_WORLD);
+          continue;
+        }
+        MPI_Recv(&bufs[worker_id-1], 1, MPI_INT, worker_id, num_formulas, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        if(bufs[worker_id-1] == 1){
+          success = 1;
+          /*break;*/
+        }
       }
+
+      printf("Result: %d\n", success);
+
       /*printf("status.MPI_SOURCE = %d, stats.MPI_TAG=%d\n", stats->MPI_SOURCE, stats->MPI_TAG); */
-      MPI_Waitall((size-1), reqs, stats); 
-      /*int cancel_calls = 0;*/
-      for(int worker_id = 1; worker_id < size; ++worker_id){
-        /*if(cancel_calls){*/
-          /*if(&reqs[worker_id-1] != NULL){*/
-            /*MPI_Cancel(reqs+(worker_id-1));*/
-            /*printf("helli\n");*/
-          /*}*/
-          /*continue;*/
-        /*}*/
+      /*MPI_Waitall((size-1), reqs, stats); */
+      /*for(int worker_id = 1; worker_id < size; ++worker_id){*/
         /*printf("Answer:%d\n", bufs[worker_id-1]);*/
         /*MPI_Wait(reqs+(worker_id-1),stats);*/
-        sum += bufs[worker_id-1];
+        /*sum += bufs[worker_id-1];*/
         /*printf("Sum: %llu\n",sum);*/
         /*printf("%d\n", bufs[worker_id-1]);*/
         /*sum += res_buff[worker_id-1];*/
-        if(sum > 0) {
-          printf("%d\n",bufs[worker_id-1]);
-          break;
+        /*if(sum > 0) {*/
+          /*printf("Result: %d\n",bufs[worker_id-1]);*/
+          /*break;*/
           /*cancel_calls = 1;*/
-        }
+        /*}*/
         /*if(res_buff->arr[worker_id-1]->map[0] != -1){*/
           /*print_assignment_map(res_buff->arr[worker_id-1]);*/
       /*printf("status.MPI_SOURCE = %d, stats.MPI_TAG=%d\n", stats->MPI_SOURCE, stats->MPI_TAG); */
         /*}*/
-      }
+      /*}*/
       // Means unsatisfiable
-      if(sum == 0) printf("%d\n",0);
+      /*if(sum == 0) printf("Result: %d\n",0);*/
       free_dynam_str(encode_formula_str);
       free_formula(f);
       free_ivec(lookup_table);
@@ -617,7 +628,6 @@ int main(int argc, char **argv) {
       /*printf("Worker Id: %d\n",rank);*/
       MPI_Status *status = malloc(sizeof(MPI_Status) * ((size-1) * 2));
       int msg_size;
-
       MPI_Probe(0, TAG_WORK, MPI_COMM_WORLD, status);
       MPI_Get_count(status, MPI_CHAR, &msg_size); 
       // printf("status.MPI_SOURCE = %d, status.MPI_TAG=%d, count = %d\n",
@@ -637,15 +647,15 @@ int main(int argc, char **argv) {
       message* msg_obj = decode_message(msg);
       ++num_formulas_recv;
       assignment* a = make_assignment(msg_obj->f);
-      int sol = solve(msg_obj->start,msg_obj->end,msg_obj->f,a,msg_obj->lookup_table); 
+      int sol = solve(msg_obj->start,msg_obj->end,msg_obj->f,a,msg_obj->lookup_table, status); 
       MPI_Send(&sol, 1, MPI_INT, 0, (int)num_formulas_recv, MPI_COMM_WORLD); 
       /*if(!sol){*/
         /*for(int i = 0; i < a->size; ++i){*/
           /*a->map[i] = -1;*/
         /*}*/
       /*}*/
-      /*printf("ANSWER: (Worker ID %d)\n", rank);*/
-      /*print_assignment_map(a);*/
+      printf("ANSWER: (Worker ID %d)\n", rank);
+      print_assignment_map(a);
       /*MPI_Send(a->map, a->size, MPI_INT, 0,(int)num_formulas_recv, MPI_COMM_WORLD);*/
       /*if(sol){*/
         /*MPI_Send(a->map, a->size, MPI_INT, 0,(int)num_formulas_recv, MPI_COMM_WORLD);*/
